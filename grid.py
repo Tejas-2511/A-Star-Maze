@@ -112,6 +112,13 @@ class Grid:
                 if self.cells[r][c] in (OPEN, CLOSED, PATH):
                     self.cells[r][c] = EMPTY
 
+    def clear_walls(self) -> None:
+        """Clear all walls, keeping start and goal intact."""
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.cells[r][c] == WALL:
+                    self.cells[r][c] = EMPTY
+
     def clear_all(self) -> None:
         """Reset the entire grid to EMPTY."""
         self.cells = [[EMPTY] * self.cols for _ in range(self.rows)]
@@ -123,3 +130,62 @@ class Grid:
         self.rows = rows
         self.cols = cols
         self.clear_all()
+
+    # ── Presets ───────────────────────────────────────────────────────────────
+
+    def generate_random_walls(self, density: float = 0.28) -> None:
+        """Populate grid with random walls at given density, sparing start & goal."""
+        import random
+        self.clear_walls()
+        self.clear_search()
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if (r, c) not in (self.start, self.goal):
+                    if random.random() < density:
+                        self.cells[r][c] = WALL
+
+    def generate_simple_maze(self) -> None:
+        """Build a structured maze with barrier columns and doorways."""
+        self.clear_walls()
+        self.clear_search()
+        # Ensure default start and goal if missing
+        if self.start is None:
+            self.set_start(1, 1)
+        if self.goal is None:
+            self.set_goal(self.rows - 2, self.cols - 2)
+
+        # Place vertical wall columns with alternating gap openings
+        col_step = 3 if self.cols <= 20 else 4
+        gap_top = True
+        for c in range(2, self.cols - 1, col_step):
+            gap_pos = 1 if gap_top else self.rows - 2
+            for r in range(self.rows):
+                if (r, c) not in (self.start, self.goal):
+                    if abs(r - gap_pos) > 1:
+                        self.cells[r][c] = WALL
+            gap_top = not gap_top
+
+    def generate_spiral(self) -> None:
+        """Generate a winding spiral labyrinth pattern."""
+        self.clear_walls()
+        self.clear_search()
+        top, bottom = 1, self.rows - 2
+        left, right = 1, self.cols - 2
+        while top < bottom - 1 and left < right - 1:
+            for c in range(left, right):
+                if (top, c) not in (self.start, self.goal):
+                    self.cells[top][c] = WALL
+            for r in range(top, bottom):
+                if (r, right - 1) not in (self.start, self.goal):
+                    self.cells[r][right - 1] = WALL
+            for c in range(right - 1, left, -1):
+                if (bottom - 1, c) not in (self.start, self.goal):
+                    self.cells[bottom - 1][c] = WALL
+            for r in range(bottom - 1, top + 2, -1):
+                if (r, left + 1) not in (self.start, self.goal):
+                    self.cells[r][left + 1] = WALL
+            top += 2
+            bottom -= 2
+            left += 2
+            right -= 2
+
