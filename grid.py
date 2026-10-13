@@ -95,7 +95,7 @@ class Grid:
         Return the 4-directional traversable neighbors of (row, col).
         Movement cost between adjacent cells is always 1.
         """
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        directions = [(-1, 0), (1, 0), (0, 1), (0, -1)]
         result = []
         for dr, dc in directions:
             nr, nc = row + dr, col + dc

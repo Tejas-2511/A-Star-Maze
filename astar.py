@@ -120,8 +120,8 @@ def astar(grid: Grid, heuristic_name: str = "manhattan"):
     directions = [
         (-1, 0, "North (↑)"),
         (1, 0, "South (↓)"),
-        (0, -1, "West (←)"),
         (0, 1, "East (→)"),
+        (0, -1, "West (←)"),
     ]
 
     while open_heap:
