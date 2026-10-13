@@ -1,52 +1,55 @@
 """
-astar.py — A* Search Algorithm & Heuristic Calculation Engine
-=============================================================
-Pure-Python implementation of A* search.
+astar.py — A* Search Algorithm & Manhattan Heuristic Engine
+============================================================
+Pure-Python implementation of A* search configured exclusively with
+the Manhattan Distance heuristic (L1 norm):
+    f(n) = g(n) + h(n)
+    h(n) = |row_n - row_goal| + |col_n - col_goal|
+
+Manhattan distance is mathematically admissible (h(n) <= h*(n)) and
+consistent (monotonic) for 4-directional orthogonal grid movement with
+unit costs, guaranteeing an optimal shortest path.
+
 Implemented as a generator function that yields step-by-step progress,
-complete calculation breakdowns (g, h, f values, formulas, neighbor
-evaluations, and priority queue states) for deep GUI visualization.
+complete calculation breakdowns (g, h, f values, formula substitutions,
+neighbor evaluations, and priority queue states) for deep GUI visualization.
 """
 
 import heapq
-import math
 from grid import Grid, CLOSED, OPEN, PATH, START, GOAL
 
 
-# ── Heuristic Functions ───────────────────────────────────────────────────────
+# ── Heuristic Function (Manhattan Distance) ───────────────────────────────────
 
 def manhattan(a: tuple[int, int], b: tuple[int, int]) -> int:
-    """Manhattan distance (|dx| + |dy|) — admissible for 4-directional grids."""
+    """
+    Manhattan distance (|dr| + |dc|) — L1 norm.
+    Admissible and consistent for 4-directional unit-cost grid movement.
+    """
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-def euclidean(a: tuple[int, int], b: tuple[int, int]) -> float:
-    """Euclidean straight-line distance sqrt(dx^2 + dy^2)."""
-    return round(math.hypot(a[0] - b[0], a[1] - b[1]), 2)
-
-
-def chebyshev(a: tuple[int, int], b: tuple[int, int]) -> int:
-    """Chebyshev distance max(|dx|, |dy|)."""
-    return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
-
-
+# Kept for backward compatibility; only Manhattan heuristic is active
 HEURISTIC_MAP = {
     "manhattan": manhattan,
-    "euclidean": euclidean,
-    "chebyshev": chebyshev,
 }
 
 
-def heuristic_formula_text(heuristic_name: str, a: tuple[int, int], b: tuple[int, int], val) -> str:
-    """Generates human-readable formula string showing the actual numbers substituted."""
+def heuristic_formula_text(heuristic_name: str, a: tuple[int, int], b: tuple[int, int], val: int | None = None) -> str:
+    """
+    Generates human-readable formula string showing the actual numbers substituted:
+        |r_n - r_g| + |c_n - c_g| = dr + dc = h
+    """
     dr = abs(a[0] - b[0])
     dc = abs(a[1] - b[1])
-    if heuristic_name == "manhattan":
-        return f"|{a[0]}-{b[0]}| + |{a[1]}-{b[1]}| = {dr} + {dc} = {val}"
-    elif heuristic_name == "euclidean":
-        return f"√(({a[0]}-{b[0]})² + ({a[1]}-{b[1]})²) = √({dr*dr} + {dc*dc}) = {val}"
-    elif heuristic_name == "chebyshev":
-        return f"max(|{a[0]}-{b[0]}|, |{a[1]}-{b[1]}|) = max({dr}, {dc}) = {val}"
-    return f"h = {val}"
+    if val is None:
+        val = dr + dc
+    return f"|{a[0]} - {b[0]}| + |{a[1]} - {b[1]}| = {dr} + {dc} = {val}"
+
+
+def manhattan_formula_text(a: tuple[int, int], b: tuple[int, int], val: int | None = None) -> str:
+    """Direct alias for Manhattan formula string representation."""
+    return heuristic_formula_text("manhattan", a, b, val)
 
 
 # ── Path reconstruction helper ────────────────────────────────────────────────
@@ -69,14 +72,15 @@ def _reconstruct(came_from: dict, current: tuple) -> list[tuple]:
 
 def astar(grid: Grid, heuristic_name: str = "manhattan"):
     """
-    A* search generator yielding rich calculation metrics at every step.
+    A* search generator yielding rich calculation metrics at every step
+    using the Manhattan distance heuristic exclusively.
 
     Parameters
     ----------
     grid : Grid
         The maze grid instance.
     heuristic_name : str
-        'manhattan', 'euclidean', or 'chebyshev'.
+        Kept for signature compatibility; defaults to and uses 'manhattan'.
 
     Yields
     ------
@@ -98,18 +102,19 @@ def astar(grid: Grid, heuristic_name: str = "manhattan"):
         }
         return
 
-    h_func = HEURISTIC_MAP.get(heuristic_name, manhattan)
     t0 = time.perf_counter()
 
-    # Cost tracking: g_score[n] = exact cost from start to n
-    g_score: dict[tuple, float] = {start: 0}
-    h_start = h_func(start, goal)
-    h_score: dict[tuple, float] = {start: h_start}
-    f_score: dict[tuple, float] = {start: h_start}
+    # Cost tracking: g_score[n] = exact cost from start to n (integers)
+    g_score: dict[tuple, int] = {start: 0}
+    h_start = manhattan(start, goal)
+    h_score: dict[tuple, int] = {start: h_start}
+    f_score: dict[tuple, int] = {start: h_start}
 
-    # Priority queue: min-heap of (f_score, tie-break counter, node)
+    # Priority queue: min-heap of (f_score, h_score, tie-break counter, node)
+    # Tie-breaking by lower h_score guides the search directly towards the goal
+    # when f_scores are equal, expanding fewer redundant nodes.
     counter = 0
-    open_heap: list = [(h_start, counter, start)]
+    open_heap: list = [(h_start, h_start, counter, start)]
     came_from: dict[tuple, tuple] = {}
     in_open: set = {start}
     closed: set = set()
@@ -125,7 +130,7 @@ def astar(grid: Grid, heuristic_name: str = "manhattan"):
     ]
 
     while open_heap:
-        f_curr, _, current = heapq.heappop(open_heap)
+        f_curr, h_curr, _, current = heapq.heappop(open_heap)
 
         if current in closed:
             continue  # Stale heap entry
@@ -136,35 +141,39 @@ def astar(grid: Grid, heuristic_name: str = "manhattan"):
         step_num += 1
 
         curr_g = g_score.get(current, 0)
-        curr_h = h_score.get(current, h_func(current, goal))
+        curr_h = h_score.get(current, manhattan(current, goal))
         curr_f = f_score.get(current, curr_g + curr_h)
 
         # Snapshot of top open set entries for queue inspector
         open_queue_snapshot = []
         for entry in sorted(open_heap):
-            e_f, _, e_node = entry
+            e_f, e_h, _, e_node = entry
             if e_node not in closed and e_node not in [x['pos'] for x in open_queue_snapshot]:
                 open_queue_snapshot.append({
                     'pos': e_node,
                     'f': e_f,
                     'g': g_score.get(e_node, 0),
-                    'h': h_score.get(e_node, 0),
+                    'h': h_score.get(e_node, e_h),
                 })
                 if len(open_queue_snapshot) >= 6:
                     break
 
         # Formula text for current node: f(n) = g(n) + h(n)
-        h_formula = heuristic_formula_text(heuristic_name, current, goal, curr_h)
+        h_formula = manhattan_formula_text(current, goal, curr_h)
         f_formula = f"f(n) = g({curr_g}) + h({curr_h}) = {curr_f}"
 
         current_calc = {
             'pos': current,
+            'goal': goal,
+            'dr': abs(current[0] - goal[0]),
+            'dc': abs(current[1] - goal[1]),
             'g': curr_g,
             'h': curr_h,
             'f': curr_f,
             'h_formula': h_formula,
             'f_formula': f_formula,
-            'heuristic_name': heuristic_name,
+            'formula_symbolic': "h(n) = |r - r_goal| + |c - c_goal|",
+            'heuristic_name': "manhattan",
         }
 
         # ── Goal Reached ─────────────────────────────────────────────────────
@@ -227,8 +236,8 @@ def astar(grid: Grid, heuristic_name: str = "manhattan"):
 
             tentative_g = curr_g + 1  # Unit step cost
             existing_g = g_score.get(neighbor, float('inf'))
-            n_h = h_func(neighbor, goal)
-            n_f = round(tentative_g + n_h, 2)
+            n_h = manhattan(neighbor, goal)
+            n_f = tentative_g + n_h
 
             if tentative_g < existing_g:
                 came_from[neighbor] = current
@@ -236,7 +245,7 @@ def astar(grid: Grid, heuristic_name: str = "manhattan"):
                 h_score[neighbor] = n_h
                 f_score[neighbor] = n_f
                 counter += 1
-                heapq.heappush(open_heap, (n_f, counter, neighbor))
+                heapq.heappush(open_heap, (n_f, n_h, counter, neighbor))
                 is_new = neighbor not in in_open
                 in_open.add(neighbor)
 

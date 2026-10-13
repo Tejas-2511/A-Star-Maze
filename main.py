@@ -1,20 +1,28 @@
 """
-main.py — Intelligent Maze Solver (A* Search & Calculation Lab)
-==============================================================
-Interactive Tkinter GUI dedicated purely to A* Search (f = g + h):
+main.py — Intelligent Maze Solver (A* Search & Manhattan Calculation Lab)
+=========================================================================
+Interactive Tkinter GUI dedicated purely to A* Search using the Manhattan
+Distance heuristic exclusively:
+    f(n) = g(n) + h(n)
+    h(n) = |row_n - row_goal| + |col_n - col_goal| = |Δrow| + |Δcol|
+
+Key Features:
+  • Clean, spacious layout with dynamic responsive panels (no clipped text or scrollbar overlap)
   • Interactive grid: place walls, start, and goal with mouse or presets
   • Live step-by-step mathematical calculations:
-      - Formula breakdown: f(n) = g(n) + h(n) with actual numbers substituted
-      - Heuristic calculation breakdown (Manhattan: |dx| + |dy|, Euclidean, Chebyshev)
-      - 4-direction neighbor evaluations (tentative g, heuristic h, f, and heap actions)
+      - Formula breakdown: f(n) = g(n) + h(n) with actual coordinates substituted
+      - Manhattan heuristic calculation displayed prominently in the GUI:
+        h(n) = |r_n - r_goal| + |c_n - c_goal| = |Δr| + |Δc|
+      - 4-direction neighbor evaluations (tentative g, Manhattan h, f, and heap actions)
       - Open Set Priority Queue (min-heap top candidates showing why lowest f is chosen)
-      - Cell numbers rendered directly on grid cells (f, g, h)
-      - Live Hover Cell Inspector (inspect any cell on mouseover without lag)
+      - Cell numbers rendered directly on grid cells (f, g, h) as clean integers
+      - Live Hover Cell Inspector (inspect any cell with live Manhattan calculation)
   • Search execution controls:
       - Execution: Run, Step-Forward (⏭), Pause/Resume (⏸), Reset Search, Clear All
-      - Maze Presets: Simple Maze, Random Walls, Spiral Labyrinth, Clear Walls
-      - Speed control: slider from 1ms to 200ms
-  • Modern dark aesthetic with sleek card panels and color-coded status badges
+      - Keyboard Shortcuts: [Space] Run/Pause, [S] Step, [R] Reset, [C] Clear All
+      - Maze Presets: Simple Maze, Serpentine Corridors, Spiral Labyrinth, Random Walls, Clear Walls
+      - Animation speed slider with live millisecond readout
+  • Modern dark aesthetic with sleek card panels, mathematical badges, and color-coded status badges
 """
 
 import tkinter as tk
@@ -24,7 +32,7 @@ import time
 from grid import (
     Grid, EMPTY, WALL, START, GOAL, OPEN, CLOSED, PATH
 )
-from astar import astar, manhattan, HEURISTIC_MAP, heuristic_formula_text
+from astar import astar, manhattan, manhattan_formula_text, HEURISTIC_MAP, heuristic_formula_text
 
 # ── Color Palette ─────────────────────────────────────────────────────────────
 PALETTE = {
@@ -71,14 +79,14 @@ MAX_CELL_PX = 56
 
 
 class MazeSolverApp:
-    """Main Application Window & A* Visual Calculation Lab."""
+    """Main Application Window & A* Manhattan Visual Calculation Lab."""
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Intelligent Maze Solver — A* Search & Live Calculation Lab")
+        self.root.title("Intelligent Maze Solver — A* Search & Manhattan Calculation Lab")
         self.root.configure(bg=PALETTE["bg"])
-        self.root.geometry("1340x820")
-        self.root.minsize(1080, 660)
+        self.root.geometry("1400x860")
+        self.root.minsize(1120, 680)
 
         # ── State ─────────────────────────────────────────────────────────────
         self.grid = Grid(DEFAULT_ROWS, DEFAULT_COLS)
@@ -86,9 +94,10 @@ class MazeSolverApp:
         self.grid.set_goal(DEFAULT_ROWS - 3, DEFAULT_COLS - 3)
 
         self.mode = tk.StringVar(value="wall")            # wall | start | goal | erase
-        self.heuristic = tk.StringVar(value="manhattan")  # manhattan | euclidean | chebyshev
-        self.cell_display = tk.StringVar(value="f")       # f | fgh | none
+        self.heuristic = tk.StringVar(value="manhattan")  # Manhattan heuristic exclusively
+        self.cell_display = tk.StringVar(value="f")       # f | g | h | fgh | none
         self.speed_ms = tk.IntVar(value=DEFAULT_SPEED)
+        self.speed_label_var = tk.StringVar(value=f"{DEFAULT_SPEED} ms")
 
         self.is_running = False
         self.is_paused = False
@@ -99,10 +108,10 @@ class MazeSolverApp:
         self._hover_node = None
 
         # Live calculation caches
-        self._g_scores = {}
-        self._h_scores = {}
-        self._f_scores = {}
-        self._came_from = {}
+        self._g_scores: dict[tuple[int, int], int] = {}
+        self._h_scores: dict[tuple[int, int], int] = {}
+        self._f_scores: dict[tuple[int, int], int] = {}
+        self._came_from: dict[tuple[int, int], tuple[int, int]] = {}
         self._step_count = 0
         self._nodes_explored = 0
 
@@ -116,11 +125,13 @@ class MazeSolverApp:
 
         # Calculation card variables
         self.calc_node = tk.StringVar(value="None")
+        self.calc_goal_coords = tk.StringVar(value=f"({self.grid.goal[0]}, {self.grid.goal[1]})" if self.grid.goal else "—")
         self.calc_formula = tk.StringVar(value="f(n) = g(n) + h(n)")
         self.calc_g = tk.StringVar(value="—")
         self.calc_h = tk.StringVar(value="—")
         self.calc_f = tk.StringVar(value="—")
-        self.calc_h_detail = tk.StringVar(value="Run or step the search to inspect live formulas")
+        self.calc_h_detail = tk.StringVar(value="h(n) = |r_n - r_goal| + |c_n - c_goal|")
+        self.calc_f_detail = tk.StringVar(value="Run or step the search to inspect live arithmetic substitutions")
 
         # Hover inspector variables
         self.hov_coords = tk.StringVar(value="Hover over any cell")
@@ -128,6 +139,7 @@ class MazeSolverApp:
         self.hov_g = tk.StringVar(value="—")
         self.hov_h = tk.StringVar(value="—")
         self.hov_f = tk.StringVar(value="—")
+        self.hov_h_calc = tk.StringVar(value="—")
         self.hov_parent = tk.StringVar(value="—")
 
         # Canvas items cache
@@ -136,6 +148,7 @@ class MazeSolverApp:
         self._hover_rect_id = None
 
         self._build_ui()
+        self._bind_keyboard_shortcuts()
         self._draw_grid()
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -144,7 +157,9 @@ class MazeSolverApp:
 
     def _build_ui(self) -> None:
         """Construct the top header and 3-column dashboard layout."""
+        self.root.columnconfigure(0, weight=0)
         self.root.columnconfigure(1, weight=1)
+        self.root.columnconfigure(2, weight=0)
         self.root.rowconfigure(1, weight=1)
 
         # ── 1. Top Header Bar ────────────────────────────────────────────────
@@ -156,12 +171,12 @@ class MazeSolverApp:
         title_box = tk.Frame(header, bg=PALETTE["header_bg"])
         title_box.pack(side="left", padx=16, pady=8)
 
-        tk.Label(title_box, text="🧭 A* Maze Solver & Calculation Lab",
+        tk.Label(title_box, text="🧭 A* Maze Solver & Live Calculation Lab",
                  bg=PALETTE["header_bg"], fg=PALETTE["text"],
                  font=("Segoe UI", 13, "bold")).pack(side="left")
-        tk.Label(title_box, text="  |  f(n) = g(n) + h(n) Heuristic Search Visualization",
-                 bg=PALETTE["header_bg"], fg=PALETTE["text_dim"],
-                 font=("Segoe UI", 9)).pack(side="left")
+        tk.Label(title_box, text="  |  Manhattan Heuristic: f(n) = g(n) + h(n)  [h(n) = |Δrow| + |Δcol|]",
+                 bg=PALETTE["header_bg"], fg=PALETTE["accent_cyan"],
+                 font=("Segoe UI", 9, "bold")).pack(side="left")
 
         # Status badge pill
         self.status_badge = tk.Label(header, textvariable=self.stat_status,
@@ -200,25 +215,37 @@ class MazeSolverApp:
         self._build_right_panel()
 
     # ──────────────────────────────────────────────────────────────────────────
-    # LEFT PANEL: Controls, Presets, Settings
+    # LEFT PANEL: Controls, Presets, Settings & Prominent Manhattan Formula
     # ──────────────────────────────────────────────────────────────────────────
 
     def _build_left_panel(self) -> None:
-        left_container = tk.Frame(self.root, bg=PALETTE["panel"], width=240,
+        left_container = tk.Frame(self.root, bg=PALETTE["panel"], width=295,
                                   highlightbackground=PALETTE["panel_border"], highlightthickness=1)
         left_container.grid(row=1, column=0, sticky="nsew", padx=(10, 4), pady=8)
         left_container.grid_propagate(False)
 
-        canvas = tk.Canvas(left_container, bg=PALETTE["panel"], highlightthickness=0, width=224)
-        vscroll = ttk.Scrollbar(left_container, orient="vertical", command=canvas.yview)
+        # Scrollbar and Canvas
+        vscroll = ttk.Scrollbar(left_container, orient="vertical")
+        canvas = tk.Canvas(left_container, bg=PALETTE["panel"], highlightthickness=0)
+        canvas.configure(yscrollcommand=vscroll.set)
+        vscroll.configure(command=canvas.yview)
+
         panel = tk.Frame(canvas, bg=PALETTE["panel"])
+        panel.columnconfigure(0, weight=1)
+
+        win_id = canvas.create_window((0, 0), window=panel, anchor="nw")
 
         panel.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=panel, anchor="nw", width=220)
-        canvas.configure(yscrollcommand=vscroll.set)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win_id, width=e.width))
 
-        canvas.pack(side="left", fill="both", expand=True)
+        # Mouse wheel support
+        def _on_wheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind("<MouseWheel>", _on_wheel)
+        panel.bind("<MouseWheel>", _on_wheel)
+
         vscroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
 
         r = 0
 
@@ -226,7 +253,7 @@ class MazeSolverApp:
         self._section_title(panel, r, "DRAW TOOLS")
         r += 1
         tools_frame = tk.Frame(panel, bg=PALETTE["panel"])
-        tools_frame.grid(row=r, column=0, sticky="ew", padx=10, pady=(0, 6))
+        tools_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=(0, 6))
         r += 1
 
         self._mode_btns = {}
@@ -243,38 +270,73 @@ class MazeSolverApp:
                           activebackground=PALETTE["primary"], activeforeground="white",
                           relief="flat", bd=0, font=("Segoe UI", 9, "bold"),
                           padx=6, pady=5, cursor="hand2")
-            b.grid(row=gr, column=gc, sticky="ew", padx=2, pady=2)
+            b.grid(row=gr, column=gc, sticky="ew", padx=3, pady=2)
             tools_frame.columnconfigure(gc, weight=1)
             self._mode_btns[val] = b
 
-        # Section: A* Search Settings
-        self._section_title(panel, r, "A* SEARCH SETTINGS")
-        r += 1
-        algo_frame = tk.Frame(panel, bg=PALETTE["panel"])
-        algo_frame.grid(row=r, column=0, sticky="ew", padx=10, pady=(0, 6))
+        # ── Section: Manhattan Heuristic & Mathematical Formula Display ──────
+        self._section_title(panel, r, "MANHATTAN HEURISTIC FORMULA")
         r += 1
 
-        heur_box = tk.Frame(algo_frame, bg=PALETTE["panel"])
-        heur_box.pack(fill="x", pady=2)
-        tk.Label(heur_box, text="Heuristic:", bg=PALETTE["panel"], fg=PALETTE["text_sub"],
-                 font=("Segoe UI", 8)).pack(side="left")
-        self.heur_combo = ttk.Combobox(heur_box, textvariable=self.heuristic,
-                                       values=["manhattan", "euclidean", "chebyshev"],
-                                       state="readonly", font=("Segoe UI", 9), width=11)
-        self.heur_combo.pack(side="right")
-        self.heur_combo.bind("<<ComboboxSelected>>", lambda e: self._on_heuristic_change())
+        heur_card = tk.Frame(panel, bg=PALETTE["card_bg"],
+                             highlightbackground=PALETTE["card_border"], highlightthickness=1)
+        heur_card.grid(row=r, column=0, sticky="ew", padx=8, pady=(0, 6))
+        r += 1
+
+        # Header tag
+        heur_header = tk.Frame(heur_card, bg="#131926", height=24)
+        heur_header.pack(fill="x")
+        heur_header.pack_propagate(False)
+        tk.Label(heur_header, text="📐 Manhattan Distance (L1 Norm)", bg="#131926",
+                 fg=PALETTE["accent_cyan"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=8, pady=2)
+
+        # Formula block inside stylized box
+        f_box = tk.Frame(heur_card, bg="#0c121e", padx=8, pady=6,
+                         highlightbackground=PALETTE["card_border"], highlightthickness=1)
+        f_box.pack(fill="x", padx=8, pady=6)
+
+        tk.Label(f_box, text="f(n) = g(n) + h(n)", bg="#0c121e", fg=PALETTE["text"],
+                 font=("Consolas", 10, "bold")).pack(anchor="w")
+        tk.Label(f_box, text="h(n) = |r_n - r_g| + |c_n - c_g|", bg="#0c121e", fg=PALETTE["accent_gold"],
+                 font=("Consolas", 9, "bold")).pack(anchor="w", pady=(2, 0))
+        tk.Label(f_box, text="     = |Δrow| + |Δcol|", bg="#0c121e", fg=PALETTE["accent_cyan"],
+                 font=("Consolas", 8)).pack(anchor="w")
+
+        # Descriptive bullets
+        desc_box = tk.Frame(heur_card, bg=PALETTE["card_bg"], padx=8)
+        desc_box.pack(fill="x", pady=(0, 6))
+
+        items = [
+            ("g(n):", "Cost from start", PALETTE["accent_green"]),
+            ("h(n):", "Manhattan to goal", PALETTE["accent_gold"]),
+            ("f(n):", "Total estimated cost", PALETTE["accent_rose"]),
+        ]
+        for sym, label, col in items:
+            row_f = tk.Frame(desc_box, bg=PALETTE["card_bg"])
+            row_f.pack(fill="x", pady=1)
+            tk.Label(row_f, text=sym, bg=PALETTE["card_bg"], fg=col,
+                     font=("Consolas", 8, "bold"), width=5, anchor="w").pack(side="left")
+            tk.Label(row_f, text=label, bg=PALETTE["card_bg"], fg=PALETTE["text_sub"],
+                     font=("Segoe UI", 8), anchor="w").pack(side="left")
+
+        # Mathematical Guarantee note
+        guar_lbl = tk.Label(desc_box, text="⭐ Admissible: h(n) ≤ h*(n)\nConsistent · Guarantees shortest path",
+                            bg="#111827", fg=PALETTE["text_dim"], font=("Segoe UI", 7),
+                            padx=4, pady=3, justify="center")
+        guar_lbl.pack(fill="x", pady=(4, 0))
 
         # Section: Maze Presets
         self._section_title(panel, r, "MAZE PRESETS")
         r += 1
         preset_frame = tk.Frame(panel, bg=PALETTE["panel"])
-        preset_frame.grid(row=r, column=0, sticky="ew", padx=10, pady=(0, 6))
+        preset_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=(0, 6))
         r += 1
 
         presets = [
             ("Simple Maze", self._preset_simple),
-            ("Random 28%", self._preset_random),
+            ("Corridors", self._preset_corridors),
             ("Spiral Lab", self._preset_spiral),
+            ("Random 28%", self._preset_random),
             ("Clear Walls", self._preset_clear_walls),
         ]
         for i, (name, cmd) in enumerate(presets):
@@ -283,20 +345,23 @@ class MazeSolverApp:
                           activebackground=PALETTE["primary"], activeforeground="white",
                           relief="flat", bd=0, font=("Segoe UI", 8, "bold"),
                           padx=4, pady=4, cursor="hand2")
-            b.grid(row=i // 2, column=i % 2, sticky="ew", padx=2, pady=2)
-            preset_frame.columnconfigure(i % 2, weight=1)
+            if i == 4:
+                b.grid(row=2, column=0, columnspan=2, sticky="ew", padx=3, pady=2)
+            else:
+                b.grid(row=i // 2, column=i % 2, sticky="ew", padx=3, pady=2)
+                preset_frame.columnconfigure(i % 2, weight=1)
 
         # Section: Grid Cell Numbers (Clean Combobox)
         self._section_title(panel, r, "CELL NUMBERS ON GRID")
         r += 1
         disp_frame = tk.Frame(panel, bg=PALETTE["panel"])
-        disp_frame.grid(row=r, column=0, sticky="ew", padx=10, pady=(0, 6))
+        disp_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=(0, 6))
         r += 1
 
         self.disp_display_map = {
             "f-score (total: g + h)": "f",
             "g-cost (from start)": "g",
-            "h-cost (heuristic)": "h",
+            "h-cost (heuristic: |Δr| + |Δc|)": "h",
             "f, g, h breakdown": "fgh",
             "Hide numbers (clean)": "none",
         }
@@ -313,15 +378,25 @@ class MazeSolverApp:
         self._section_title(panel, r, "ANIMATION SPEED")
         r += 1
         speed_frame = tk.Frame(panel, bg=PALETTE["panel"])
-        speed_frame.grid(row=r, column=0, sticky="ew", padx=10, pady=(0, 6))
+        speed_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=(0, 6))
         r += 1
 
-        tk.Label(speed_frame, text="Slow", bg=PALETTE["panel"], fg=PALETTE["text_dim"],
+        speed_top = tk.Frame(speed_frame, bg=PALETTE["panel"])
+        speed_top.pack(fill="x", pady=(0, 2))
+        tk.Label(speed_top, text="Step Delay:", bg=PALETTE["panel"], fg=PALETTE["text_dim"],
                  font=("Segoe UI", 8)).pack(side="left")
-        ttk.Scale(speed_frame, from_=200, to=1, variable=self.speed_ms,
-                  orient="horizontal").pack(side="left", fill="x", expand=True, padx=6)
-        tk.Label(speed_frame, text="Fast", bg=PALETTE["panel"], fg=PALETTE["text_dim"],
-                 font=("Segoe UI", 8)).pack(side="left")
+        tk.Label(speed_top, textvariable=self.speed_label_var, bg=PALETTE["panel"], fg=PALETTE["accent_cyan"],
+                 font=("Consolas", 8, "bold")).pack(side="right")
+
+        speed_slider_box = tk.Frame(speed_frame, bg=PALETTE["panel"])
+        speed_slider_box.pack(fill="x")
+        tk.Label(speed_slider_box, text="Slow", bg=PALETTE["panel"], fg=PALETTE["text_dim"],
+                 font=("Segoe UI", 7)).pack(side="left")
+        self.speed_scale = ttk.Scale(speed_slider_box, from_=200, to=1, variable=self.speed_ms,
+                                     orient="horizontal", command=self._on_speed_slide)
+        self.speed_scale.pack(side="left", fill="x", expand=True, padx=4)
+        tk.Label(speed_slider_box, text="Fast", bg=PALETTE["panel"], fg=PALETTE["text_dim"],
+                 font=("Segoe UI", 7)).pack(side="left")
 
         # Section: Execution Controls
         self._section_title(panel, r, "SEARCH CONTROLS")
@@ -332,11 +407,11 @@ class MazeSolverApp:
                                  activebackground=PALETTE["primary_hover"], activeforeground="white",
                                  relief="flat", bd=0, font=("Segoe UI", 10, "bold"),
                                  pady=7, cursor="hand2")
-        self.run_btn.grid(row=r, column=0, sticky="ew", padx=10, pady=3)
+        self.run_btn.grid(row=r, column=0, sticky="ew", padx=8, pady=3)
         r += 1
 
         step_pause_box = tk.Frame(panel, bg=PALETTE["panel"])
-        step_pause_box.grid(row=r, column=0, sticky="ew", padx=10, pady=2)
+        step_pause_box.grid(row=r, column=0, sticky="ew", padx=8, pady=2)
         r += 1
 
         self.step_btn = tk.Button(step_pause_box, text="⏭ Step", command=self._step_once,
@@ -354,7 +429,7 @@ class MazeSolverApp:
         self.pause_btn.pack(side="right", fill="x", expand=True, padx=(2, 0))
 
         reset_clear_box = tk.Frame(panel, bg=PALETTE["panel"])
-        reset_clear_box.grid(row=r, column=0, sticky="ew", padx=10, pady=2)
+        reset_clear_box.grid(row=r, column=0, sticky="ew", padx=8, pady=2)
         r += 1
 
         self.reset_search_btn = tk.Button(reset_clear_box, text="↺ Reset", command=self._clear_search,
@@ -372,11 +447,19 @@ class MazeSolverApp:
         self.clear_all_btn.pack(side="right", fill="x", expand=True, padx=(2, 0))
         r += 1
 
+        # Keyboard shortcuts badge
+        shortcut_box = tk.Frame(panel, bg="#0f1523",
+                                highlightbackground=PALETTE["card_border"], highlightthickness=1)
+        shortcut_box.grid(row=r, column=0, sticky="ew", padx=8, pady=(4, 6))
+        r += 1
+        tk.Label(shortcut_box, text="⌨  [Space] Run/Pause  [S] Step  [R] Reset",
+                 bg="#0f1523", fg=PALETTE["text_dim"], font=("Segoe UI", 7)).pack(pady=3)
+
         # Section: Grid Size
         self._section_title(panel, r, "GRID DIMENSIONS")
         r += 1
         dim_frame = tk.Frame(panel, bg=PALETTE["panel"])
-        dim_frame.grid(row=r, column=0, sticky="ew", padx=10, pady=(0, 10))
+        dim_frame.grid(row=r, column=0, sticky="ew", padx=8, pady=(0, 10))
         r += 1
 
         tk.Label(dim_frame, text="Rows:", bg=PALETTE["panel"], fg=PALETTE["text_sub"],
@@ -384,19 +467,19 @@ class MazeSolverApp:
         self.rows_var = tk.IntVar(value=DEFAULT_ROWS)
         tk.Spinbox(dim_frame, from_=6, to=40, textvariable=self.rows_var, width=4,
                    bg=PALETTE["card_bg"], fg=PALETTE["text"], relief="flat",
-                   buttonbackground=PALETTE["card_bg"]).grid(row=0, column=1, padx=4)
+                   buttonbackground=PALETTE["card_bg"]).grid(row=0, column=1, padx=3)
 
         tk.Label(dim_frame, text="Cols:", bg=PALETTE["panel"], fg=PALETTE["text_sub"],
-                 font=("Segoe UI", 8)).grid(row=0, column=2, sticky="w", padx=(6, 0))
+                 font=("Segoe UI", 8)).grid(row=0, column=2, sticky="w", padx=(4, 0))
         self.cols_var = tk.IntVar(value=DEFAULT_COLS)
         tk.Spinbox(dim_frame, from_=8, to=60, textvariable=self.cols_var, width=4,
                    bg=PALETTE["card_bg"], fg=PALETTE["text"], relief="flat",
-                   buttonbackground=PALETTE["card_bg"]).grid(row=0, column=3, padx=4)
+                   buttonbackground=PALETTE["card_bg"]).grid(row=0, column=3, padx=3)
 
         tk.Button(dim_frame, text="Resize", command=self._apply_grid_size,
                   bg=PALETTE["card_border"], fg=PALETTE["text"],
                   relief="flat", bd=0, font=("Segoe UI", 8, "bold"),
-                  padx=6, pady=2, cursor="hand2").grid(row=0, column=4, padx=(6, 0))
+                  padx=6, pady=2, cursor="hand2").grid(row=0, column=4, padx=(5, 0))
 
         self._refresh_mode_btns()
 
@@ -406,7 +489,7 @@ class MazeSolverApp:
 
     def _build_canvas_area(self) -> None:
         frame = tk.Frame(self.root, bg=PALETTE["bg"])
-        frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=8)
+        frame.grid(row=1, column=1, sticky="nsew", padx=4, pady=8)
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
 
@@ -423,25 +506,37 @@ class MazeSolverApp:
         self.canvas.bind("<Configure>",       self._on_resize)
 
     # ──────────────────────────────────────────────────────────────────────────
-    # RIGHT PANEL: Live Calculations Lab & Detailed Inspector
+    # RIGHT PANEL: Live Calculations Lab & Detailed Manhattan Inspector
     # ──────────────────────────────────────────────────────────────────────────
 
     def _build_right_panel(self) -> None:
-        right_container = tk.Frame(self.root, bg=PALETTE["panel"], width=280,
+        right_container = tk.Frame(self.root, bg=PALETTE["panel"], width=325,
                                    highlightbackground=PALETTE["panel_border"], highlightthickness=1)
         right_container.grid(row=1, column=2, sticky="nsew", padx=(4, 10), pady=8)
         right_container.grid_propagate(False)
 
-        canvas = tk.Canvas(right_container, bg=PALETTE["panel"], highlightthickness=0, width=264)
-        vscroll = ttk.Scrollbar(right_container, orient="vertical", command=canvas.yview)
+        # Scrollbar and Canvas
+        vscroll = ttk.Scrollbar(right_container, orient="vertical")
+        canvas = tk.Canvas(right_container, bg=PALETTE["panel"], highlightthickness=0)
+        canvas.configure(yscrollcommand=vscroll.set)
+        vscroll.configure(command=canvas.yview)
+
         panel = tk.Frame(canvas, bg=PALETTE["panel"])
+        panel.columnconfigure(0, weight=1)
+
+        win_id = canvas.create_window((0, 0), window=panel, anchor="nw")
 
         panel.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=panel, anchor="nw", width=260)
-        canvas.configure(yscrollcommand=vscroll.set)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win_id, width=e.width))
 
-        canvas.pack(side="left", fill="both", expand=True)
+        # Mouse wheel support
+        def _on_wheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind("<MouseWheel>", _on_wheel)
+        panel.bind("<MouseWheel>", _on_wheel)
+
         vscroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
 
         r = 0
 
@@ -450,7 +545,7 @@ class MazeSolverApp:
                  fg=PALETTE["accent_gold"], font=("Segoe UI", 10, "bold")).grid(
             row=r, column=0, sticky="w", padx=10, pady=(8, 2)); r += 1
 
-        # ── Card 1: Active Expanding Node Calculations ──
+        # ── Card 1: Active Expanding Node Calculations & Manhattan Formula ───
         calc_card = self._create_card(panel, r, "ACTIVE NODE: f(n) = g(n) + h(n)")
         r += 1
 
@@ -461,49 +556,64 @@ class MazeSolverApp:
         tk.Label(node_header, textvariable=self.calc_node, bg=PALETTE["card_bg"],
                  fg=PALETTE["accent_rose"], font=("Segoe UI", 9, "bold")).pack(side="left", padx=4)
 
+        tk.Label(node_header, text="Goal:", bg=PALETTE["card_bg"],
+                 fg=PALETTE["text_dim"], font=("Segoe UI", 8)).pack(side="left", padx=(6, 0))
+        tk.Label(node_header, textvariable=self.calc_goal_coords, bg=PALETTE["card_bg"],
+                 fg=PALETTE["accent_cyan"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=2)
+
         # Compact math pill: g + h = f
-        pill_frame = tk.Frame(calc_card, bg="#111827",
+        pill_frame = tk.Frame(calc_card, bg="#0c121e",
                               highlightbackground=PALETTE["card_border"], highlightthickness=1)
-        pill_frame.pack(fill="x", padx=8, pady=3)
+        pill_frame.pack(fill="x", padx=8, pady=4)
 
         for col_idx in range(5):
             pill_frame.columnconfigure(col_idx, weight=1)
 
-        tk.Label(pill_frame, text="g(n)", bg="#111827", fg=PALETTE["text_dim"],
-                 font=("Segoe UI", 7)).grid(row=0, column=0, pady=(2, 0))
-        tk.Label(pill_frame, textvariable=self.calc_g, bg="#111827", fg=PALETTE["accent_green"],
-                 font=("Consolas", 10, "bold")).grid(row=1, column=0, pady=(0, 2))
+        tk.Label(pill_frame, text="g(n)", bg="#0c121e", fg=PALETTE["text_dim"],
+                 font=("Segoe UI", 7)).grid(row=0, column=0, pady=(3, 0))
+        tk.Label(pill_frame, textvariable=self.calc_g, bg="#0c121e", fg=PALETTE["accent_green"],
+                 font=("Consolas", 11, "bold")).grid(row=1, column=0, pady=(0, 3))
 
-        tk.Label(pill_frame, text="+", bg="#111827", fg=PALETTE["text_dim"],
+        tk.Label(pill_frame, text="+", bg="#0c121e", fg=PALETTE["text_dim"],
                  font=("Segoe UI", 9, "bold")).grid(row=0, column=1, rowspan=2)
 
-        tk.Label(pill_frame, text="h(n)", bg="#111827", fg=PALETTE["text_dim"],
-                 font=("Segoe UI", 7)).grid(row=0, column=2, pady=(2, 0))
-        tk.Label(pill_frame, textvariable=self.calc_h, bg="#111827", fg=PALETTE["accent_gold"],
-                 font=("Consolas", 10, "bold")).grid(row=1, column=2, pady=(0, 2))
+        tk.Label(pill_frame, text="h(n)", bg="#0c121e", fg=PALETTE["text_dim"],
+                 font=("Segoe UI", 7)).grid(row=0, column=2, pady=(3, 0))
+        tk.Label(pill_frame, textvariable=self.calc_h, bg="#0c121e", fg=PALETTE["accent_gold"],
+                 font=("Consolas", 11, "bold")).grid(row=1, column=2, pady=(0, 3))
 
-        tk.Label(pill_frame, text="=", bg="#111827", fg=PALETTE["text_dim"],
+        tk.Label(pill_frame, text="=", bg="#0c121e", fg=PALETTE["text_dim"],
                  font=("Segoe UI", 9, "bold")).grid(row=0, column=3, rowspan=2)
 
-        tk.Label(pill_frame, text="f(n)", bg="#111827", fg=PALETTE["text_dim"],
-                 font=("Segoe UI", 7)).grid(row=0, column=4, pady=(2, 0))
-        tk.Label(pill_frame, textvariable=self.calc_f, bg="#111827", fg=PALETTE["accent_rose"],
-                 font=("Consolas", 10, "bold")).grid(row=1, column=4, pady=(0, 2))
+        tk.Label(pill_frame, text="f(n)", bg="#0c121e", fg=PALETTE["text_dim"],
+                 font=("Segoe UI", 7)).grid(row=0, column=4, pady=(3, 0))
+        tk.Label(pill_frame, textvariable=self.calc_f, bg="#0c121e", fg=PALETTE["accent_rose"],
+                 font=("Consolas", 11, "bold")).grid(row=1, column=4, pady=(0, 3))
 
-        # Formula text
-        tk.Label(calc_card, textvariable=self.calc_h_detail, bg=PALETTE["card_bg"],
-                 fg=PALETTE["text_sub"], font=("Segoe UI", 7), wraplength=240,
-                 justify="left").pack(anchor="w", padx=8, pady=(2, 5))
+        # Formula text container
+        formula_box = tk.Frame(calc_card, bg="#0c121e", padx=8, pady=5,
+                               highlightbackground=PALETTE["card_border"], highlightthickness=1)
+        formula_box.pack(fill="x", padx=8, pady=(2, 6))
+
+        tk.Label(formula_box, text="Manhattan: h(n) = |r_n - r_g| + |c_n - c_g|",
+                 bg="#0c121e", fg=PALETTE["accent_gold"], font=("Consolas", 8, "bold"),
+                 anchor="w").pack(fill="x")
+        tk.Label(formula_box, textvariable=self.calc_h_detail,
+                 bg="#0c121e", fg=PALETTE["text"], font=("Consolas", 8),
+                 wraplength=280, justify="left", anchor="w").pack(fill="x", pady=(2, 0))
+        tk.Label(formula_box, textvariable=self.calc_f_detail,
+                 bg="#0c121e", fg=PALETTE["accent_cyan"], font=("Consolas", 8),
+                 wraplength=280, justify="left", anchor="w").pack(fill="x", pady=(2, 0))
 
         # ── Card 2: 4-Direction Neighbor Evaluation ──
         nbr_card = self._create_card(panel, r, "NEIGHBOR EVALUATION (N, S, E, W)")
         r += 1
 
         self.nbr_rows_container = tk.Frame(nbr_card, bg=PALETTE["card_bg"])
-        self.nbr_rows_container.pack(fill="x", padx=6, pady=3)
+        self.nbr_rows_container.pack(fill="x", padx=8, pady=4)
         self.nbr_labels = []
         for i in range(4):
-            nf = tk.Frame(self.nbr_rows_container, bg="#131926", padx=5, pady=2,
+            nf = tk.Frame(self.nbr_rows_container, bg="#131926", padx=6, pady=3,
                           highlightbackground=PALETTE["card_border"], highlightthickness=1)
             nf.pack(fill="x", pady=1)
             lbl_dir = tk.Label(nf, text=f"Dir {i+1}", bg="#131926", fg=PALETTE["text"],
@@ -522,10 +632,10 @@ class MazeSolverApp:
         r += 1
 
         self.queue_container = tk.Frame(queue_card, bg=PALETTE["card_bg"])
-        self.queue_container.pack(fill="x", padx=6, pady=3)
+        self.queue_container.pack(fill="x", padx=8, pady=4)
         self.queue_rows = []
         for i in range(3):
-            qf = tk.Frame(self.queue_container, bg="#131926", padx=5, pady=2)
+            qf = tk.Frame(self.queue_container, bg="#131926", padx=6, pady=3)
             qf.pack(fill="x", pady=1)
             ql_rank = tk.Label(qf, text=f"#{i+1}", bg="#131926", fg=PALETTE["accent_gold"],
                                font=("Segoe UI", 7, "bold"), width=3)
@@ -543,7 +653,7 @@ class MazeSolverApp:
         r += 1
 
         h_info = tk.Frame(hov_card, bg=PALETTE["card_bg"])
-        h_info.pack(fill="x", padx=6, pady=3)
+        h_info.pack(fill="x", padx=8, pady=4)
 
         h_row1 = tk.Frame(h_info, bg=PALETTE["card_bg"])
         h_row1.pack(fill="x", pady=1)
@@ -554,7 +664,7 @@ class MazeSolverApp:
                  font=("Segoe UI", 8)).pack(side="left")
 
         h_row2 = tk.Frame(h_info, bg=PALETTE["card_bg"])
-        h_row2.pack(fill="x", pady=1)
+        h_row2.pack(fill="x", pady=2)
         tk.Label(h_row2, text="g:", bg=PALETTE["card_bg"], fg=PALETTE["text_dim"],
                  font=("Segoe UI", 7)).pack(side="left")
         tk.Label(h_row2, textvariable=self.hov_g, bg=PALETTE["card_bg"], fg=PALETTE["accent_green"],
@@ -572,12 +682,20 @@ class MazeSolverApp:
         tk.Label(h_row2, textvariable=self.hov_parent, bg=PALETTE["card_bg"], fg=PALETTE["text_sub"],
                  font=("Segoe UI", 7)).pack(side="left", padx=(1, 0))
 
+        # Live Manhattan math breakdown under hover inspector
+        h_calc_box = tk.Frame(h_info, bg="#0c121e", padx=6, pady=3,
+                              highlightbackground=PALETTE["card_border"], highlightthickness=1)
+        h_calc_box.pack(fill="x", pady=(4, 2))
+        tk.Label(h_calc_box, textvariable=self.hov_h_calc, bg="#0c121e", fg=PALETTE["accent_gold"],
+                 font=("Consolas", 8), wraplength=280, justify="left").pack(anchor="w")
+
         # ── Card 5: Color Legend ──
         leg_card = self._create_card(panel, r, "COLOR LEGEND")
         r += 1
 
         leg_grid = tk.Frame(leg_card, bg=PALETTE["card_bg"])
-        leg_grid.pack(fill="x", padx=6, pady=3)
+        leg_grid.pack(fill="x", padx=8, pady=4)
+
         legend_items = [
             (PALETTE[START], "Start"),
             (PALETTE[GOAL], "Goal"),
@@ -591,27 +709,48 @@ class MazeSolverApp:
         for i, (col, text) in enumerate(legend_items):
             gr, gc = i // 2, (i % 2) * 2
             swatch = tk.Frame(leg_grid, bg=col, width=9, height=9)
-            swatch.grid(row=gr, column=gc, padx=(0, 3), pady=1)
+            swatch.grid(row=gr, column=gc, padx=(0, 3), pady=2)
             tk.Label(leg_grid, text=text, bg=PALETTE["card_bg"], fg=PALETTE["text_sub"],
-                     font=("Segoe UI", 7)).grid(row=gr, column=gc + 1, sticky="w", pady=1, padx=(0, 6))
+                     font=("Segoe UI", 7)).grid(row=gr, column=gc + 1, sticky="w", pady=2, padx=(0, 8))
+
+    # ── Keyboard Shortcuts ───────────────────────────────────────────────────
+
+    def _bind_keyboard_shortcuts(self) -> None:
+        """Bind ergonomic keyboard shortcuts for seamless interaction."""
+        self.root.bind("<space>", lambda e: self._on_shortcut_space())
+        self.root.bind("<Right>", lambda e: self._step_once())
+        self.root.bind("<s>", lambda e: self._step_once())
+        self.root.bind("<S>", lambda e: self._step_once())
+        self.root.bind("<r>", lambda e: self._clear_search())
+        self.root.bind("<R>", lambda e: self._clear_search())
+        self.root.bind("<c>", lambda e: self._clear_all())
+        self.root.bind("<C>", lambda e: self._clear_all())
+
+    def _on_shortcut_space(self) -> None:
+        if self.is_running and not self.is_paused:
+            self._toggle_pause()
+        elif self.is_running and self.is_paused:
+            self._toggle_pause()
+        else:
+            self._run_search()
 
     # ── UI Construction Helpers ───────────────────────────────────────────────
 
     def _section_title(self, parent: tk.Frame, row: int, text: str) -> None:
         sep = tk.Frame(parent, bg=PALETTE["panel_border"], height=1)
-        sep.grid(row=row, column=0, sticky="ew", padx=10, pady=(8, 2))
+        sep.grid(row=row, column=0, sticky="ew", padx=8, pady=(8, 2))
         tk.Label(parent, text=text, bg=PALETTE["panel"], fg=PALETTE["text_dim"],
-                 font=("Segoe UI", 7, "bold")).grid(row=row + 1, column=0, sticky="w", padx=12, pady=(0, 3))
+                 font=("Segoe UI", 7, "bold")).grid(row=row + 1, column=0, sticky="w", padx=10, pady=(0, 3))
 
     def _create_card(self, parent: tk.Frame, row: int, title: str) -> tk.Frame:
         card = tk.Frame(parent, bg=PALETTE["card_bg"],
                         highlightbackground=PALETTE["card_border"], highlightthickness=1)
         card.grid(row=row, column=0, sticky="ew", padx=8, pady=3)
-        title_bar = tk.Frame(card, bg="#131926", height=22)
+        title_bar = tk.Frame(card, bg="#131926", height=24)
         title_bar.pack(fill="x")
         title_bar.pack_propagate(False)
         tk.Label(title_bar, text=title, bg="#131926", fg=PALETTE["accent_cyan"],
-                 font=("Segoe UI", 8, "bold")).pack(side="left", padx=6, pady=2)
+                 font=("Segoe UI", 8, "bold")).pack(side="left", padx=8, pady=2)
         return card
 
     def _set_mode(self, mode: str) -> None:
@@ -626,12 +765,8 @@ class MazeSolverApp:
             else:
                 btn.configure(bg=PALETTE["card_bg"], fg=PALETTE["text"])
 
-    def _on_heuristic_change(self) -> None:
-        if self.is_running:
-            self._toggle_pause()
-        self._clear_search()
-        heur = self.heuristic.get()
-        self.calc_formula.set(f"f(n) = g(n) + h(n)  [{heur.capitalize()}]")
+    def _on_speed_slide(self, _val=None) -> None:
+        self.speed_label_var.set(f"{self.speed_ms.get()} ms")
 
     def _on_display_combo_change(self, _event=None) -> None:
         selected = self.disp_combo.get()
@@ -705,16 +840,16 @@ class MazeSolverApp:
 
     def _draw_cell_numbers(self, r: int, c: int, x0: int, y0: int, x1: int, y1: int,
                            sz: int, disp_mode: str) -> None:
-        """Draws f, g, h numbers inside a cell."""
+        """Draws f, g, h numbers inside a cell (clean integers for Manhattan)."""
         if (r, c) not in self._f_scores:
             return
         f_val = self._f_scores[(r, c)]
         g_val = self._g_scores.get((r, c), 0)
         h_val = self._h_scores.get((r, c), 0)
 
-        f_str = f"{int(f_val)}" if isinstance(f_val, (int, float)) and f_val == int(f_val) else f"{f_val}"
-        g_str = f"{int(g_val)}" if isinstance(g_val, (int, float)) and g_val == int(g_val) else f"{g_val}"
-        h_str = f"{int(h_val)}" if isinstance(h_val, (int, float)) and h_val == int(h_val) else f"{h_val}"
+        f_str = str(int(f_val))
+        g_str = str(int(g_val))
+        h_str = str(int(h_val))
 
         if disp_mode == "g":
             font_main = ("Segoe UI", max(7, sz // 3), "bold")
@@ -792,6 +927,7 @@ class MazeSolverApp:
             self._clear_search()
         elif m == "goal":
             self.grid.set_goal(r, c)
+            self.calc_goal_coords.set(f"({r}, {c})")
             self._clear_search()
         elif m == "wall":
             self.grid.set_wall(r, c)
@@ -870,28 +1006,35 @@ class MazeSolverApp:
         }
         self.hov_type.set(type_names.get(st, "—"))
 
+        # G-score
         if (r, c) in self._g_scores:
             g_val = self._g_scores[(r, c)]
-            self.hov_g.set(str(int(g_val) if g_val == int(g_val) else g_val))
+            self.hov_g.set(str(int(g_val)))
         else:
             self.hov_g.set("—")
 
-        if (r, c) in self._h_scores:
-            h_val = self._h_scores[(r, c)]
-            self.hov_h.set(str(int(h_val) if h_val == int(h_val) else h_val))
-        elif self.grid.goal is not None:
-            h_func = HEURISTIC_MAP.get(self.heuristic.get(), manhattan)
-            h_val = h_func((r, c), self.grid.goal)
-            self.hov_h.set(f"~{int(h_val) if h_val == int(h_val) else h_val}")
+        # Manhattan H-score and live calculation breakdown
+        if self.grid.goal is not None:
+            gr, gc = self.grid.goal
+            dr = abs(r - gr)
+            dc = abs(c - gc)
+            h_val = dr + dc
+            self.hov_h.set(str(h_val))
+            self.hov_h_calc.set(f"Manhattan: |{r}-{gr}| + |{c}-{gc}| = {dr}+{dc} = {h_val}")
         else:
             self.hov_h.set("—")
+            self.hov_h_calc.set("Goal not set")
 
+        # F-score
         if (r, c) in self._f_scores:
             f_val = self._f_scores[(r, c)]
-            self.hov_f.set(str(int(f_val) if f_val == int(f_val) else f_val))
+            self.hov_f.set(str(int(f_val)))
+        elif (r, c) in self._g_scores and self.grid.goal is not None:
+            self.hov_f.set(str(int(self._g_scores[(r, c)] + h_val)))
         else:
             self.hov_f.set("—")
 
+        # Parent
         if (r, c) in self._came_from:
             pr, pc = self._came_from[(r, c)]
             self.hov_parent.set(f"({pr}, {pc})")
@@ -945,10 +1088,11 @@ class MazeSolverApp:
         return True
 
     def _start_search_engine(self) -> None:
-        """Initializes A* generator and clear previous paths."""
+        """Initializes A* generator with Manhattan heuristic exclusively."""
         self._clear_search()
-        heur = self.heuristic.get()
-        self._search_gen = astar(self.grid, heuristic_name=heur)
+        if self.grid.goal:
+            self.calc_goal_coords.set(f"({self.grid.goal[0]}, {self.grid.goal[1]})")
+        self._search_gen = astar(self.grid, heuristic_name="manhattan")
 
     def _step(self) -> None:
         """Timer callback for continuous search."""
@@ -1000,12 +1144,14 @@ class MazeSolverApp:
         calc = update.get("current_calc")
         if calc:
             cp = calc["pos"]
+            gp = calc["goal"]
             self.calc_node.set(f"({cp[0]}, {cp[1]})")
-            self.calc_formula.set(calc["f_formula"])
+            self.calc_goal_coords.set(f"({gp[0]}, {gp[1]})")
             self.calc_g.set(str(calc["g"]))
             self.calc_h.set(str(calc["h"]))
             self.calc_f.set(str(calc["f"]))
-            self.calc_h_detail.set(f"Heuristic breakdown: {calc['h_formula']}")
+            self.calc_h_detail.set(f"|{cp[0]}-{gp[0]}| + |{cp[1]}-{gp[1]}| = {calc['dr']}+{calc['dc']} = {calc['h']}")
+            self.calc_f_detail.set(f"f(n) = g({calc['g']}) + h({calc['h']}) = {calc['f']}")
 
         # Update Neighbor Expansion Card
         nbrs = update.get("neighbors", [])
@@ -1137,10 +1283,13 @@ class MazeSolverApp:
         self.status_badge.configure(fg=PALETTE["accent_cyan"])
 
         self.calc_node.set("None")
+        if self.grid.goal:
+            self.calc_goal_coords.set(f"({self.grid.goal[0]}, {self.grid.goal[1]})")
         self.calc_g.set("—")
         self.calc_h.set("—")
         self.calc_f.set("—")
-        self.calc_h_detail.set("Run or step the search to inspect live formulas")
+        self.calc_h_detail.set("h(n) = |r_n - r_goal| + |c_n - c_goal|")
+        self.calc_f_detail.set("Run or step the search to inspect live arithmetic substitutions")
 
         self._draw_grid()
 
@@ -1150,6 +1299,7 @@ class MazeSolverApp:
         self.grid.clear_all()
         self.grid.set_start(2, 2)
         self.grid.set_goal(self.grid.rows - 3, self.grid.cols - 3)
+        self.calc_goal_coords.set(f"({self.grid.goal[0]}, {self.grid.goal[1]})")
         self._draw_grid()
 
     # ── Maze Presets ──────────────────────────────────────────────────────────
@@ -1157,6 +1307,11 @@ class MazeSolverApp:
     def _preset_simple(self) -> None:
         self._clear_search()
         self.grid.generate_simple_maze()
+        self._draw_grid()
+
+    def _preset_corridors(self) -> None:
+        self._clear_search()
+        self.grid.generate_corridors()
         self._draw_grid()
 
     def _preset_random(self) -> None:
@@ -1183,6 +1338,7 @@ class MazeSolverApp:
         self.grid.resize(rows, cols)
         self.grid.set_start(2, 2)
         self.grid.set_goal(rows - 3, cols - 3)
+        self.calc_goal_coords.set(f"({rows - 3}, {cols - 3})")
         self._draw_grid()
 
 

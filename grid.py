@@ -189,3 +189,23 @@ class Grid:
             left += 2
             right -= 2
 
+    def generate_corridors(self) -> None:
+        """Generate a serpentine corridor maze with winding turns."""
+        self.clear_walls()
+        self.clear_search()
+        if self.start is None:
+            self.set_start(1, 1)
+        if self.goal is None:
+            self.set_goal(self.rows - 2, self.cols - 2)
+
+        gap_right = True
+        for r in range(2, self.rows - 1, 2):
+            for c in range(1, self.cols - 1):
+                if (r, c) not in (self.start, self.goal):
+                    if gap_right and c >= self.cols - 3:
+                        continue
+                    elif not gap_right and c <= 2:
+                        continue
+                    self.cells[r][c] = WALL
+            gap_right = not gap_right
+
