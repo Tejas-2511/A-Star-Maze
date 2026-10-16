@@ -1,0 +1,354 @@
+/* ==========================================================================
+   A* Pathfinding Visualizer — Barebones Simple CSS
+   Clean, lightweight, legible, and unbloated styling.
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f8f9fa;
+  color: #1f2937;
+  line-height: 1.4;
+  padding: 16px;
+}
+
+header {
+  margin-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+header p {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+/* Toolbar Controls */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 14px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #d1d5db;
+  margin: 0 4px;
+}
+
+label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+button, select, input[type="range"] {
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+button {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1f2937;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+button.btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+button.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+button.btn-primary.paused {
+  background: #ea580c;
+  border-color: #c2410c;
+}
+
+button.tool-btn.active {
+  background: #e0e7ff;
+  border-color: #4f46e5;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+select {
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.speed-label {
+  font-size: 0.8rem;
+  font-family: monospace;
+  min-width: 48px;
+}
+
+/* Layout */
+.main-layout {
+  display: grid;
+  grid-template-columns: auto 380px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Grid & Canvas */
+.grid-container {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.canvas-wrapper {
+  overflow: auto;
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  line-height: 0;
+  display: inline-block;
+}
+
+canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #9ca3af;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.color-start { background-color: #22c55e; }
+.color-goal { background-color: #ef4444; }
+.color-wall { background-color: #334155; }
+.color-active { background-color: #f97316; }
+.color-open { background-color: #38bdf8; }
+.color-closed { background-color: #cbd5e1; }
+.color-path { background-color: #eab308; }
+
+/* Sidebar Panels */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.panel h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Statistics Table */
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.stats-table td {
+  padding: 4px 0;
+}
+
+.stats-table td:last-child {
+  text-align: right;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-ready { background: #e5e7eb; color: #374151; }
+.status-running { background: #fef08a; color: #854d0e; }
+.status-found { background: #bbf7d0; color: #166534; }
+.status-failed { background: #fecaca; color: #991b1b; }
+
+/* Math & Active Node Box */
+.math-formula {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.math-formula .formula-highlight {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.math-details {
+  font-size: 0.8rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+/* Neighbors Table */
+.neighbor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  margin-top: 6px;
+}
+
+.neighbor-table th, .neighbor-table td {
+  border: 1px solid #e5e7eb;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.neighbor-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.tag-added { color: #0284c7; font-weight: 600; }
+.tag-wall { color: #64748b; }
+.tag-closed { color: #94a3b8; }
+.tag-worse { color: #d97706; }
+.tag-goal { color: #16a34a; font-weight: 700; }
+
+/* Priority Queue peek */
+.pq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: monospace;
+  font-size: 0.78rem;
+}
+
+.pq-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+}
+
+.pq-row.pq-top {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  font-weight: 600;
+}
+
+/* Explanation Log Box */
+.log-container {
+  height: 180px;
+  overflow-y: auto;
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.log-entry {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.log-entry.log-found {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.log-entry.log-failed {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.btn-small {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}

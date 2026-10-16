@@ -1,167 +1,134 @@
-# Intelligent Maze Solver — A* Search & Manhattan Calculation Lab
+# A* Maze Solver & Pathfinding Visualizer
 
-An interactive maze-solving application and educational calculation laboratory that visualises the **A\* heuristic search algorithm** in real time using a sleek modern Tkinter GUI.
+An interactive pathfinding visualizer and algorithm laboratory built with **HTML5, CSS3, and JavaScript (ES6+)**.
 
-This project focuses exclusively on the **Manhattan Distance heuristic ($L_1$ norm)** for $f(n) = g(n) + h(n)$ calculation, presenting the exact mathematical formulas, substitutions, neighbor evaluations, and priority queue operations live on screen.
-
----
-
-## 🌟 Key Features
-
-| Feature | Details |
-|---|---|
-| 📐 **Manhattan Heuristic Formula in GUI** | Dedicated cards and headers showing $f(n) = g(n) + h(n)$ and $h(n) = \|r_n - r_{goal}\| + \|c_n - c_{goal}\|$ |
-| 🧮 **Live Calculation Lab** | Displays exact step-by-step arithmetic and numerical substitutions for each active expanding node |
-| 🧭 **4-Direction Neighbor Evaluation** | Evaluates North, South, East, West with tentative $g$, Manhattan $h$, $f$, and heap decisions |
-| 📋 **Priority Queue Inspector** | Real-time Open Set min-heap leaderboard showing why the lowest-$f$ (with lower-$h$ tie-breaker) node is expanded next |
-| 🔢 **Grid Cell Value Overlays** | Switch between viewing $f$-score, $g$-cost (distance from start), $h$-cost, or full $f, g, h$ on cells |
-| 🔍 **Live Hover Cell Inspector** | Hover over any cell to inspect $(r, c)$, status, $g$, $h$, $f$, parent node, and live Manhattan calculation |
-| ⏭ **Step-by-Step Execution** | Step forward one iteration at a time to examine calculations at your own pace |
-| ⌨️ **Ergonomic Shortcuts** | `[Space]` Run/Pause/Resume, `[S]` or `[→]` Step Forward, `[R]` Reset Search, `[C]` Clear All |
-| 🎲 **1-Click Maze Presets** | Instant test patterns: *Simple Maze*, *Corridors*, *Spiral Labyrinth*, *Random (28%)*, and *Clear Walls* |
-| 🧱 **Interactive Drawing** | Click and drag to draw walls, set start (🟢) and goal (🔴), or erase |
-| ⚡ **Speed Control & Resizer** | Smooth animation speed slider with live millisecond display (1 ms to 200 ms) and dynamic grid resizer |
+This project provides a clean, step-by-step demonstration of the **A\* Search Algorithm**, featuring live mathematical evaluations ($f(n) = g(n) + h(n)$), real-time priority queue inspection, and an intuitive grid for drawing custom mazes and obstacles.
 
 ---
 
-## 📁 Project Structure
+## ⚡ 30-Second Elevator Pitch (For Presentations & Viva)
 
-```
-A-Star-Maze/
-├── main.py     # Interactive Tkinter GUI & Live Manhattan Calculation Lab
-├── astar.py    # A* Search generator with Manhattan heuristic & priority queue engine
-├── grid.py     # 2-D grid representation, cell states, neighbor enumeration & presets
-└── README.md   # Documentation, mathematical formulas, and algorithm reference
+> *"This project visualizes the **A\* Search Algorithm** finding the optimal shortest path through a maze. Unlike Dijkstra's algorithm which searches blindly in all directions, A\* uses a **heuristic function (Manhattan distance)** to intelligently guide its search towards the goal. At each step, it chooses the node with the lowest total estimated cost $f(n) = g(n) + h(n)$ from a **Min-Heap Priority Queue**, guaranteeing the shortest path in the fewest expansions possible."*
+
+---
+
+## 🚀 How to Run the Project
+
+The visualizer is **100% client-side** with zero external dependencies or build steps.
+
+### 1-Click Launch:
+Simply **double-click** [index.html](file:///c:/Users/tejas/Documents/tejas/codin/A-Star-Maze/index.html) to open it in any web browser.
+
+Or run from PowerShell:
+```powershell
+start index.html
 ```
 
 ---
 
-## 💻 Requirements
+## 🧮 The Core Mathematics of A*
 
-- **Python 3.10+** (uses modern type hints)
-- **Tkinter** (bundled with standard Python on Windows, macOS, and Linux)
-
-*No third-party packages or pip installs required.*
-
----
-
-## 🚀 Running the Application
-
-```bash
-python main.py
-```
-
----
-
-## 🎮 How to Use
-
-### 1 — Draw Your Maze or Load a Preset
-
-* **Draw Tools**:
-  * 🧱 **Wall**: Click and drag on empty cells to build walls.
-  * 🟢 **Start**: Click any cell to place the starting position.
-  * 🔴 **Goal**: Click any cell to place the target goal.
-  * 🗑️ **Erase**: Click and drag to remove walls.
-* **Presets**: Use **Simple Maze**, **Corridors**, **Spiral Lab**, or **Random 28%** to instantly generate complex mazes.
-
-### 2 — Manhattan Heuristic Display & Cell Numbers
-
-* **Manhattan Heuristic**:
-  * Defined as $h(n) = |r_n - r_{goal}| + |c_n - c_{goal}| = |\Delta \text{row}| + |\Delta \text{col}|$.
-  * Admissible ($h(n) \le h^*(n)$) and consistent for 4-directional orthogonal movement.
-  * Prominently displayed in the Left Panel and Right Calculation Lab.
-* **Cell Values on Grid**:
-  * `f-score (total: g + h)`: Shows total estimated cost.
-  * `g-cost (from start)`: Shows step count propagating outward from Start.
-  * `h-cost (heuristic: |Δr| + |Δc|)`: Shows remaining distance counting down to $0$ at Goal.
-  * `f, g, h breakdown`: Shows $f$ in the center with $g$ and $h$ in the corners.
-  * `Hide numbers (clean)`: Minimalist view.
-
-### 3 — Run, Step, and Inspect
-
-* **▶ Run Search** (or `[Space]`): Starts animated continuous search.
-* **⏭ Step** (or `[S]` / `[→]`): Advances exactly one node expansion to inspect arithmetic substitutions and neighbor decisions.
-* **⏸ Pause / Resume** (or `[Space]`): Freeze search at any point to inspect candidate nodes.
-* **↺ Reset Search** (or `[R]`): Keeps walls and start/goal intact while clearing paths and calculations.
-* **⬛ Clear All** (or `[C]`): Resets the entire grid and walls.
-
----
-
-## 🎨 Color Legend
-
-| Indicator | Color | Meaning |
-|---|---|---|
-| 🟢 Green | `#10b981` | Start Node |
-| 🔴 Red | `#ef4444` | Goal Node |
-| 🟣 Pink / Magenta | `#ec4899` | Active Expanding Node (currently being evaluated) |
-| 🟡 Gold | `#f59e0b` | Final optimal shortest path found by A\* |
-| 🔵 Royal Blue | `#1d4ed8` | Frontier / Open Set (discovered candidate cells) |
-| 🟦 Slate Blue | `#1e293b` | Explored / Closed Set (already expanded cells) |
-| 🧱 Slate | `#2a3348` | Obstacle Wall |
-| ⬛ Dark Navy | `#151c2c` | Unvisited Empty Cell |
-
----
-
-## 🧮 How A\* Works & The Manhattan Mathematics
-
-### 1. The Evaluation Function
-
-At every step, A\* scores candidate cells with:
+Every candidate node $n$ is evaluated using the formula:
 
 $$f(n) = g(n) + h(n)$$
 
-where $h(n)$ is the **Manhattan Distance**:
-
-$$h(n) = |r_n - r_{goal}| + |c_n - c_{goal}| = |\Delta \text{row}| + |\Delta \text{col}|$$
-
-| Component | Definition | Meaning |
+| Component | Meaning | How it is Calculated |
 |---|---|---|
-| $g(n)$ | Exact Path Cost | Number of unit steps taken along the cheapest path from **Start → $n$** |
-| $h(n)$ | Manhattan Heuristic | Exact minimum grid steps from **$n$ → Goal** with no walls |
-| $f(n)$ | Total Estimated Cost | Estimated total cost of an entire path passing through node $n$ |
+| **$g(n)$** | **Past Cost** | Exact number of steps taken from the Start node to node $n$. |
+| **$h(n)$** | **Future Estimate (Heuristic)** | Estimated distance from node $n$ to Goal using **Manhattan Distance**: $\|r_n - r_{goal}\| + \|c_n - c_{goal}\|$. |
+| **$f(n)$** | **Total Estimated Cost** | Sum of $g(n) + h(n)$. The node with the **lowest $f(n)$** is always expanded next. |
 
-The algorithm always extracts and expands the cell with the **lowest $f(n)$** from the priority queue (breaking ties in favor of lower $h(n)$ to move directly towards the goal).
-
----
-
-### 2. Why Direct Paths Share the Same $f$-Score
-
-If Start is at $(2, 2)$ and Goal is at $(15, 23)$, the initial Manhattan distance is:
-
-$$h(\text{Start}) = |15 - 2| + |23 - 2| = 13 + 21 = \mathbf{34}$$
-
-Whenever A\* steps closer to the goal (Down $\downarrow$ or Right $\rightarrow$):
-1. $g(n)$ increases by $1$ ($g \to g + 1$).
-2. $h(n)$ decreases by $1$ ($h \to h - 1$).
-3. The sum is **conserved**:
-
-$$f(n) = (g + 1) + (h - 1) = g + h = \mathbf{34}$$
-
-| Position | $g(n)$ | $h(n)$ | $f(n) = g + h$ |
-|---|:---:|:---:|:---:|
-| **Start (S)** | $0$ | $34$ | **$34$** |
-| Step 5 | $5$ | $29$ | **$34$** |
-| Step 15 | $15$ | $19$ | **$34$** |
-| Step 30 | $30$ | $4$ | **$34$** |
-
-### 3. Why Detours Increase $f$ to 36, 38, or 40
-
-When a wall blocks the direct path, the algorithm must step sideways or backward:
-* $g(n)$ increases by $1$ ($g \to g + 1$).
-* $h(n)$ does not decrease (or increases by $1$).
-* The total $f$-score jumps: **$34 \to 36 \to 38 \to 40$**.
-* A\* automatically prioritizes nodes with $f=34$ first, only exploring $f=36$ or $f=38$ paths when direct routes are blocked.
+### Why Manhattan Distance?
+For a 4-directional grid (moving Up, Down, Left, Right), Manhattan distance is:
+1. **Admissible**: It never overestimates the true remaining distance ($h(n) \le h^*(n)$).
+2. **Consistent (Monotonic)**: It satisfies the triangle inequality, guaranteeing that when the goal is reached, the path found is **mathematically optimal**.
 
 ---
 
-## 📚 AI Theoretical Concepts
+## 🔍 Step-by-Step Algorithm Flow
 
-| Concept | Project Implementation |
+```mermaid
+flowchart TD
+    A[Start: Push Start Node to Open Set Heap] --> B{Is Open Set Empty?}
+    B -- Yes --> C[No Path Possible / Unreachable]
+    B -- No --> D[Pop Node with Lowest f from Heap]
+    D --> E{Is Node the Goal?}
+    E -- Yes --> F[Backtrack parent pointers to construct Shortest Path]
+    E -- No --> G[Add Current Node to Closed Set]
+    G --> H[Check 4 Orthogonal Neighbors: Up, Down, Left, Right]
+    H --> I[If neighbor is Wall or in Closed Set, Skip]
+    I --> J[Calculate tentative g = current.g + 1]
+    J --> K{Is tentative g < neighbor.g?}
+    K -- Yes --> L[Update neighbor parent, g, h, f and push to Open Set Heap]
+    K -- No --> M[Skip neighbor]
+    L --> B
+    M --> B
+```
+
+---
+
+## 📁 Code Architecture (How to Walk Through the Code)
+
+The codebase is organized into clean, modular files designed for easy explanation:
+
+```
+A-Star-Maze/
+├── index.html     # Semantic layout: header metrics, control toolbar, grid canvas, and live math card
+├── style.css      # Dark-mode styling, glassmorphism, responsive grid layout
+├── script.js     # Clean, well-commented JavaScript engine (~350 lines)
+└── README.md      # Algorithm documentation and Viva guide
+```
+
+### Breakdown of [script.js](file:///c:/Users/tejas/Documents/tejas/codin/A-Star-Maze/script.js):
+1. **Cell Constants**: Defines `EMPTY`, `WALL`, `START`, `GOAL`, `OPEN`, `CLOSED`, `PATH`.
+2. **`MinHeap` Class**: Implements a binary min-heap for the Open Set so that popping the node with the lowest $f(n)$ takes $O(\log N)$ time.
+3. **`manhattanDistance()`**: Computes $|r_1 - r_2| + |c_1 - c_2|$.
+4. **`*aStarGenerator()`**: An ES6 generator function running the core A* algorithm. Yielding at each step enables both automatic smooth animation and single-step manual stepping.
+5. **`_render()`**: Draws the grid, active expanding node, cell numbers ($f$-score), and the glowing golden shortest path on the HTML5 Canvas.
+
+---
+
+## 🎓 Top 5 Viva / Interview Questions & Answers
+
+### 1. What is the fundamental difference between Dijkstra's algorithm and A*?
+> **Answer:** Dijkstra's algorithm only considers $g(n)$ (distance traveled so far), expanding equally in all directions like a circle. A* adds a heuristic $h(n)$ (estimated distance to goal), focusing exploration directly towards the target and visiting significantly fewer nodes.
+
+### 2. What makes a heuristic "admissible" and why is it important?
+> **Answer:** A heuristic is admissible if it **never overestimates** the actual minimum cost to reach the goal ($h(n) \le h^*(n)$). If $h(n)$ is admissible, A* is mathematically guaranteed to find the optimal shortest path.
+
+### 3. What happens if $h(n) = 0$ everywhere?
+> **Answer:** If $h(n) = 0$ for all nodes, the formula becomes $f(n) = g(n) + 0 = g(n)$, which turns A* into **Dijkstra's Algorithm**.
+
+### 4. Why use a Min-Heap instead of a simple Array for the Open Set?
+> **Answer:** With a simple array, finding the minimum $f(n)$ node requires a linear scan of $O(N)$ time. A Min-Heap Priority Queue allows extracting the minimum in $O(1)$ lookup and $O(\log N)$ restructuring, making pathfinding much faster on larger grids.
+
+### 5. What are the Time and Space Complexities of A*?
+> **Answer:**
+> - **Time Complexity:** In the worst case $O(b^d)$ (where $b$ is the branching factor and $d$ is the solution depth), but with a good admissible heuristic like Manhattan distance, it is drastically smaller in practice.
+> - **Space Complexity:** $O(b^d)$ because A* must store all frontier nodes in the Open Set and visited nodes in the Closed Set.
+
+---
+
+## 🎨 Grid Color Legend
+
+| Color | State | Meaning |
+|---|---|---|
+| 🟢 Green | Start | Starting position (S) |
+| 🔴 Red | Goal | Target destination (G) |
+| 🧱 Slate | Wall | Impassable obstacle |
+| 🟣 Pink | Current Node | The active node currently being expanded |
+| 🔵 Blue | Open Set (Frontier) | Discovered candidate nodes waiting in the priority queue |
+| 🟦 Dark Slate | Closed Set (Visited) | Explored nodes already evaluated |
+| 🟡 Radiant Gold | Shortest Path | Optimal path reconstructed from Goal to Start |
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
 |---|---|
-| **Intelligent Agent** | Solver autonomously explores states and discovers optimal path |
-| **State-Space Search** | Each traversable grid coordinate $(r, c)$ represents a discrete state |
-| **Heuristic Search** | Manhattan distance guides search toward the goal, pruning bad branches |
-| **Evaluation Function** | $f(n) = g(n) + h(n)$ calculated and displayed live for every candidate |
-| **Admissibility** | Manhattan distance never overestimates true grid cost ($h(n) \le h^*(n)$), guaranteeing optimality |
-| **Consistency / Monotonicity** | $h(n) \le c(n, a, n') + h(n')$, ensuring nodes are expanded in monotonic order of $f$ |
-| **Priority Queue** | Min-heap maintains the Open Set, extracting the lowest-$(f, h)$ node in $O(\log n)$ time |
+| <kbd>Space</kbd> | Run / Pause Visualizer |
+| <kbd>S</kbd> or <kbd>→</kbd> | Step forward one node expansion |
+| <kbd>R</kbd> | Reset Search (preserves drawn walls) |
+| <kbd>W</kbd> | Select Draw Wall tool |
+| <kbd>E</kbd> | Select Erase Wall tool |

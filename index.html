@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A* Pathfinding Visualizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>A* Pathfinding Visualizer</h1>
+    <p>A* Search with Min-Heap Priority Queue, Animated Sets, Live Math &amp; Explanation Log</p>
+  </header>
+
+  <!-- Controls Toolbar -->
+  <section class="toolbar">
+    <!-- Playback Controls -->
+    <div class="toolbar-group">
+      <button id="btn-play" class="btn-primary" title="Start / Pause Visualization (Space)">
+        <span id="play-btn-text">Visualize A*</span>
+      </button>
+      <button id="btn-step" title="Advance one node expansion at a time (S or Right Arrow)">Step</button>
+      <button id="btn-reset-search" title="Reset search visualization, keep walls (R)">Reset Search</button>
+      <button id="btn-clear-walls" title="Clear all walls">Clear Walls</button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Drawing Tools -->
+    <div class="toolbar-group">
+      <label>Tool:</label>
+      <button id="tool-wall" class="tool-btn active" data-tool="wall" title="Draw Walls (W)">Wall</button>
+      <button id="tool-erase" class="tool-btn" data-tool="erase" title="Erase Obstacles (E)">Erase</button>
+      <button id="tool-start" class="tool-btn" data-tool="start" title="Place Start Node">Start</button>
+      <button id="tool-goal" class="tool-btn" data-tool="goal" title="Place Goal Node">Goal</button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Maze Presets -->
+    <div class="toolbar-group">
+      <label for="preset-select">Maze:</label>
+      <select id="preset-select">
+        <option value="" disabled selected>Generate Maze...</option>
+        <option value="simple">Simple Maze</option>
+        <option value="random">Random Obstacles (30%)</option>
+      </select>
+    </div>
+
+    <!-- Number Overlay -->
+    <div class="toolbar-group">
+      <label for="overlay-select">Show:</label>
+      <select id="overlay-select">
+        <option value="f" selected>f-score (g + h)</option>
+        <option value="all">All (f, g, h)</option>
+        <option value="none">Clean Grid</option>
+      </select>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Speed Slider -->
+    <div class="toolbar-group">
+      <label for="speed-slider">Speed:</label>
+      <input type="range" id="speed-slider" min="1" max="150" value="25">
+      <span id="speed-display" class="speed-label">25 ms</span>
+    </div>
+  </section>
+
+  <!-- Main Viewport -->
+  <main class="main-layout">
+    <!-- Left Column: Canvas Grid & Legend -->
+    <div class="grid-container">
+      <div class="canvas-wrapper" id="canvas-viewport">
+        <canvas id="grid-canvas" width="832" height="576"></canvas>
+      </div>
+
+      <!-- Color Legend -->
+      <div class="legend">
+        <div class="legend-item"><span class="legend-color color-start"></span><span>Start (S)</span></div>
+        <div class="legend-item"><span class="legend-color color-goal"></span><span>Goal (G)</span></div>
+        <div class="legend-item"><span class="legend-color color-wall"></span><span>Wall</span></div>
+        <div class="legend-item"><span class="legend-color color-active"></span><span>Active Node</span></div>
+        <div class="legend-item"><span class="legend-color color-open"></span><span>Open Set (Frontier)</span></div>
+        <div class="legend-item"><span class="legend-color color-closed"></span><span>Closed Set (Visited)</span></div>
+        <div class="legend-item"><span class="legend-color color-path"></span><span>Final Shortest Path</span></div>
+      </div>
+    </div>
+
+    <!-- Right Column: Sidebar Panels -->
+    <aside class="sidebar">
+      <!-- 1. Statistics & Search State -->
+      <section class="panel">
+        <h2>
+          <span>Search Statistics</span>
+          <span class="status-badge status-ready" id="stat-status">Ready</span>
+        </h2>
+        <table class="stats-table">
+          <tbody>
+            <tr>
+              <td>Shortest Path Length:</td>
+              <td id="stat-path-len">—</td>
+            </tr>
+            <tr>
+              <td>Explored (Closed Set):</td>
+              <td id="stat-explored">0</td>
+            </tr>
+            <tr>
+              <td>Frontier (Open Set):</td>
+              <td id="stat-frontier">0</td>
+            </tr>
+            <tr>
+              <td>Algorithm Iterations:</td>
+              <td id="stat-iterations">0</td>
+            </tr>
+            <tr>
+              <td>Optimality:</td>
+              <td id="stat-optimality">Manhattan (Admissible)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 2. Live Current Node Evaluation -->
+      <section class="panel">
+        <h2>Live Node Evaluation</h2>
+        <div class="math-formula">
+          Node: <span id="current-coord" class="formula-highlight">—</span><br>
+          <span id="current-eval">f(n) = g(n) + h(n)</span>
+        </div>
+        <div class="math-details" id="math-details">
+          <div><strong>g(n):</strong> Steps from Start = <span id="sub-g">—</span></div>
+          <div><strong>h(n):</strong> Manhattan to Goal = <span id="sub-h">—</span></div>
+          <div><strong>f(n):</strong> Total estimate = <span id="sub-f">—</span></div>
+          <div style="margin-top: 4px; font-family: monospace;" id="h-calc-detail">h = |r - r_goal| + |c - c_goal|</div>
+        </div>
+      </section>
+
+      <!-- 3. Neighbor Calculations -->
+      <section class="panel">
+        <h2>Neighbor Evaluations (4 Directions)</h2>
+        <table class="neighbor-table">
+          <thead>
+            <tr>
+              <th>Dir</th>
+              <th>Cell</th>
+              <th>Cost (g + h = f)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="neighbor-eval-body">
+            <tr>
+              <td colspan="4" style="color: #6b7280; text-align: center;">Standing by for search...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 4. Open Set Priority Queue Leaderboard -->
+      <section class="panel">
+        <h2>
+          <span>Open Set Priority Queue</span>
+          <span style="font-size: 0.75rem; font-weight: normal;" id="pq-count-badge">0 items</span>
+        </h2>
+        <div class="pq-list" id="pq-leaderboard">
+          <div style="color: #6b7280; padding: 4px;">Open set is empty.</div>
+        </div>
+      </section>
+
+      <!-- 5. Explanation Log -->
+      <section class="panel">
+        <h2>
+          <span>Explanation Log</span>
+          <button id="btn-clear-log" class="btn-small" title="Clear log history">Clear</button>
+        </h2>
+        <div class="log-container" id="explanation-log">
+          <div class="log-entry">Click <strong>Visualize A*</strong> or <strong>Step</strong> to begin search.</div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
