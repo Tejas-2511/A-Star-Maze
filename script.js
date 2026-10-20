@@ -1,20 +1,13 @@
-/**
- * ============================================================================
- * A* Pathfinding Visualizer — Core Algorithm & Application Logic
- * Min-Heap Priority Queue, Animated Open/Closed Sets, Live Math & Explanations
- * ============================================================================
- */
+// Cell state constants for grid representation
+const EMPTY = 0;
+const WALL = 1;
+const START = 2;
+const GOAL = 3;
+const OPEN = 4;
+const CLOSED = 5;
+const PATH = 6;
 
-// Cell State Constants
-const EMPTY  = 0;
-const WALL   = 1;
-const START  = 2;
-const GOAL   = 3;
-const OPEN   = 4; // Frontier / Priority Queue
-const CLOSED = 5; // Visited / Explored
-const PATH   = 6; // Optimal shortest path
-
-// ── Min-Heap Priority Queue ──────────────────────────────────────────────────
+// Binary min-heap priority queue for retrieving lowest f(n) nodes in O(log N)
 class MinHeap {
   constructor() {
     this.heap = [];
@@ -28,11 +21,13 @@ class MinHeap {
     return this.heap.length === 0;
   }
 
+  // Insert a node and restore min-heap order
   push(node) {
     this.heap.push(node);
     this._bubbleUp(this.heap.length - 1);
   }
 
+  // Remove and return the minimum cost node from the root
   pop() {
     if (this.isEmpty()) return null;
     const min = this.heap[0];
@@ -44,16 +39,18 @@ class MinHeap {
     return min;
   }
 
+  // Return a sorted snapshot of all heap items for UI display
   toArray() {
     return [...this.heap].sort((a, b) => this._compare(a, b));
   }
 
-  // Primary: Lowest f(n). Secondary tie-breaker: Lowest h(n) (closer to goal)
+  // Comparator: lowest f(n) first, breaking ties with lowest h(n)
   _compare(a, b) {
     if (a.f !== b.f) return a.f - b.f;
     return a.h - b.h;
   }
 
+  // Bubble newly added elements up to maintain min-heap ordering
   _bubbleUp(index) {
     while (index > 0) {
       const parentIndex = Math.floor((index - 1) / 2);
@@ -63,6 +60,7 @@ class MinHeap {
     }
   }
 
+  // Sink replaced root down to maintain min-heap ordering
   _sinkDown(index) {
     const length = this.heap.length;
     while (true) {
@@ -84,13 +82,14 @@ class MinHeap {
   }
 }
 
-// Manhattan Distance Heuristic (|r1 - r2| + |c1 - c2|)
+// Manhattan distance heuristic: |r1 - r2| + |c1 - c2|
 function manhattanDistance(r1, c1, r2, c2) {
   return Math.abs(r1 - r2) + Math.abs(c1 - c2);
 }
 
-// ── Application Controller ───────────────────────────────────────────────────
+// Main visualizer controller managing grid state, animation loop, and canvas rendering
 class AStarVisualizer {
+  // Initialize visualizer settings, default grid, and event listeners
   constructor() {
     this.rows = 18;
     this.cols = 26;
@@ -98,7 +97,6 @@ class AStarVisualizer {
     this.start = [2, 2];
     this.goal = [this.rows - 3, this.cols - 3];
 
-    // Search state
     this.gScores = new Map();
     this.hScores = new Map();
     this.fScores = new Map();
@@ -108,18 +106,15 @@ class AStarVisualizer {
     this.iterations = 0;
     this.stepIndex = 0;
 
-    // Execution state
     this.generator = null;
     this.isRunning = false;
     this.timerId = null;
     this.delayMs = 25;
 
-    // Interaction state
     this.activeTool = 'wall';
     this.overlayType = 'f';
     this.isMouseDown = false;
 
-    // Canvas setup
     this.canvas = document.getElementById('grid-canvas');
     this.ctx = this.canvas.getContext('2d');
     this.cellSize = 32;
@@ -131,6 +126,7 @@ class AStarVisualizer {
     this._render();
   }
 
+  // Cache DOM element references for efficient UI updates
   _bindElements() {
     this.el = {
       btnPlay: document.getElementById('btn-play'),
@@ -143,14 +139,12 @@ class AStarVisualizer {
       speedSlider: document.getElementById('speed-slider'),
       speedDisplay: document.getElementById('speed-display'),
 
-      // Statistics
       statStatus: document.getElementById('stat-status'),
       statPathLen: document.getElementById('stat-path-len'),
       statExplored: document.getElementById('stat-explored'),
       statFrontier: document.getElementById('stat-frontier'),
       statIterations: document.getElementById('stat-iterations'),
 
-      // Live Math
       currentCoord: document.getElementById('current-coord'),
       currentEval: document.getElementById('current-eval'),
       subG: document.getElementById('sub-g'),
@@ -158,20 +152,15 @@ class AStarVisualizer {
       subF: document.getElementById('sub-f'),
       hCalcDetail: document.getElementById('h-calc-detail'),
 
-      // Neighbors & PQ
       neighborEvalBody: document.getElementById('neighbor-eval-body'),
       pqLeaderboard: document.getElementById('pq-leaderboard'),
       pqCountBadge: document.getElementById('pq-count-badge'),
 
-      // Explanation Log
-      explanationLog: document.getElementById('explanation-log'),
-      btnClearLog: document.getElementById('btn-clear-log'),
-
-      // Tools
       tools: document.querySelectorAll('.tool-btn')
     };
   }
 
+  // Initialize 2D grid matrix with start and goal positions
   _initGrid() {
     this.grid = Array.from({ length: this.rows }, () => new Array(this.cols).fill(EMPTY));
     this.grid[this.start[0]][this.start[1]] = START;
@@ -179,6 +168,7 @@ class AStarVisualizer {
     this._resetCaches();
   }
 
+  // Reset algorithm caches, score maps, and counters
   _resetCaches() {
     this.gScores.clear();
     this.hScores.clear();
@@ -190,11 +180,12 @@ class AStarVisualizer {
     this.stepIndex = 0;
   }
 
-  // ── Core A* Generator ──────────────────────────────────────────────────────
+  // Generator yielding step-by-step states of the A* search algorithm
   *aStarGenerator() {
     const startKey = `${this.start[0]},${this.start[1]}`;
     const goalKey = `${this.goal[0]},${this.goal[1]}`;
 
+    // Initialize priority queue and cost maps for the start node
     const heap = new MinHeap();
     const closedSet = new Set();
     const openSet = new Set([startKey]);
@@ -223,17 +214,18 @@ class AStarVisualizer {
     this.cameFrom = cameFrom;
 
     const directions = [
-      { name: 'Up',    dr: -1, dc: 0 },
-      { name: 'Down',  dr: 1,  dc: 0 },
-      { name: 'Left',  dr: 0,  dc: -1 },
-      { name: 'Right', dr: 0,  dc: 1 }
+      { name: 'Up', dr: -1, dc: 0 },
+      { name: 'Down', dr: 1, dc: 0 },
+      { name: 'Left', dr: 0, dc: -1 },
+      { name: 'Right', dr: 0, dc: 1 }
     ];
 
+    // Main search loop: expand node with the lowest f(n) until heap is empty
     while (!heap.isEmpty()) {
       const current = heap.pop();
       const currentKey = `${current.r},${current.c}`;
 
-      // Lazy deletion check: skip closed nodes or stale higher-cost paths
+      // Skip stale entries or nodes already in the closed set
       if (closedSet.has(currentKey)) continue;
       if (current.g > gScore.get(currentKey)) continue;
 
@@ -243,12 +235,11 @@ class AStarVisualizer {
       closedSet.add(currentKey);
       this.activeNode = [current.r, current.c];
 
-      // Mark cell as closed on visual grid (except start/goal)
       if (currentKey !== startKey && currentKey !== goalKey) {
         this.grid[current.r][current.c] = CLOSED;
       }
 
-      // Check if goal reached upon popping from priority queue
+      // Goal reached: reconstruct shortest path by backtracking parent pointers
       if (current.r === this.goal[0] && current.c === this.goal[1]) {
         const path = [];
         let curr = goalKey;
@@ -279,7 +270,7 @@ class AStarVisualizer {
         return;
       }
 
-      // Expand 4 orthogonal neighbors
+      // Expand and evaluate all 4 orthogonal neighbors
       const neighborEvaluations = [];
       for (const dir of directions) {
         const nr = current.r + dir.dr;
@@ -317,6 +308,7 @@ class AStarVisualizer {
         const existingG = gScore.has(neighborKey) ? gScore.get(neighborKey) : Infinity;
         const isGoal = (nr === this.goal[0] && nc === this.goal[1]);
 
+        // Update costs and push neighbor to open set if shorter path is found
         if (tentativeG < existingG) {
           const h = manhattanDistance(nr, nc, this.goal[0], this.goal[1]);
           const f = tentativeG + h;
@@ -365,7 +357,7 @@ class AStarVisualizer {
       };
     }
 
-    // Open set exhausted without finding Goal
+    // Open set exhausted without finding a path
     yield {
       type: 'not_found',
       step: this.stepIndex,
@@ -377,7 +369,7 @@ class AStarVisualizer {
     };
   }
 
-  // ── Playback Controls ──────────────────────────────────────────────────────
+  // Playback controls for running, pausing, and stepping the animation
   toggleRun() {
     if (this.isRunning) {
       this.pause();
@@ -456,6 +448,7 @@ class AStarVisualizer {
     this._handleStepResult(res.value);
   }
 
+  // Process yielded step data and update UI metrics
   _handleStepResult(data) {
     this.el.statExplored.textContent = data.explored;
     this.el.statFrontier.textContent = data.frontier;
@@ -468,18 +461,17 @@ class AStarVisualizer {
       this.el.statStatus.className = 'status-badge status-found';
       this.el.statPathLen.textContent = `${data.path.length - 1} steps (Cost: ${data.path.length - 1})`;
       this._updateMathLab(data.current, [], data.heapSnapshot, true, data.step);
-      this._appendLog(`[Step ${data.step}] GOAL REACHED! Optimal path found: ${data.path.length - 1} steps. Total explored: ${data.explored} nodes.`, 'log-found');
     } else if (data.type === 'not_found') {
       this.el.statStatus.textContent = 'No Path Possible';
       this.el.statStatus.className = 'status-badge status-failed';
       this.el.statPathLen.textContent = 'Unreachable';
-      this._appendLog(`[Search Terminated] Open set exhausted. No valid path exists from Start to Goal.`, 'log-failed');
       this.el.neighborEvalBody.innerHTML = `<tr><td colspan="4" style="color: #ef4444; text-align: center;">Frontier exhausted. No path found.</td></tr>`;
     }
 
     this._render();
   }
 
+  // Update live math breakdown, neighbor table, and priority queue display
   _updateMathLab(node, neighbors = [], heapSnapshot = [], isGoal = false, step = 0) {
     if (!node) return;
 
@@ -493,7 +485,6 @@ class AStarVisualizer {
     const dc = Math.abs(node.c - this.goal[1]);
     this.el.hCalcDetail.textContent = `|${node.r} - ${this.goal[0]}| + |${node.c} - ${this.goal[1]}| = ${dr} + ${dc} = ${node.h}`;
 
-    // Update Neighbors Table
     if (neighbors.length > 0) {
       let tbodyHtml = '';
       for (const n of neighbors) {
@@ -508,13 +499,8 @@ class AStarVisualizer {
         `;
       }
       this.el.neighborEvalBody.innerHTML = tbodyHtml;
-
-      // Add to explanation log
-      const addedCount = neighbors.filter(n => n.status.includes('added') || n.status.includes('goal')).length;
-      this._appendLog(`[Step ${step}] Popped (${node.r}, ${node.c}) with f=${node.f} (g=${node.g}, h=${node.h}). Added ${addedCount} neighbor(s) to Open Set.`);
     }
 
-    // Update Priority Queue peek
     if (heapSnapshot) {
       this.el.pqCountBadge.textContent = `${heapSnapshot.length} nodes`;
       if (heapSnapshot.length === 0) {
@@ -536,15 +522,7 @@ class AStarVisualizer {
     }
   }
 
-  _appendLog(message, className = '') {
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${className}`;
-    entry.textContent = message;
-    this.el.explanationLog.appendChild(entry);
-    this.el.explanationLog.scrollTop = this.el.explanationLog.scrollHeight;
-  }
-
-  // ── Reset & Clearing ───────────────────────────────────────────────────────
+  // Reset pathfinding state while keeping obstacle walls intact
   resetSearch() {
     this.pause();
     this.generator = null;
@@ -578,10 +556,10 @@ class AStarVisualizer {
     this.el.pqLeaderboard.innerHTML = `<div style="color: #6b7280; padding: 4px;">Open set is empty.</div>`;
     this.el.pqCountBadge.textContent = '0 items';
 
-    this._appendLog('--- Search Reset (Walls Kept) ---');
     this._render();
   }
 
+  // Remove all walls and reset search state
   clearWalls() {
     this.resetSearch();
     for (let r = 0; r < this.rows; r++) {
@@ -591,10 +569,10 @@ class AStarVisualizer {
         }
       }
     }
-    this._appendLog('--- Walls Cleared ---');
     this._render();
   }
 
+  // Generate procedural obstacle maze presets
   loadPreset(type) {
     this.clearWalls();
     if (type === 'simple') {
@@ -607,7 +585,6 @@ class AStarVisualizer {
           }
         }
       }
-      this._appendLog('Loaded Simple Maze Preset.');
     } else if (type === 'random') {
       for (let r = 0; r < this.rows; r++) {
         for (let c = 0; c < this.cols; c++) {
@@ -617,12 +594,11 @@ class AStarVisualizer {
           }
         }
       }
-      this._appendLog('Generated 30% Random Obstacles.');
     }
     this._render();
   }
 
-  // ── Canvas Rendering Engine ────────────────────────────────────────────────
+  // Render grid cells, active node, and shortest path line onto the canvas
   _render() {
     const ctx = this.ctx;
     const cs = this.cellSize;
@@ -633,16 +609,15 @@ class AStarVisualizer {
     ctx.fillRect(0, 0, width, height);
 
     const colorMap = {
-      [EMPTY]:  { fill: '#ffffff', border: '#e5e7eb' },
-      [WALL]:   { fill: '#334155', border: '#1e293b' },
-      [START]:  { fill: '#22c55e', border: '#16a34a' },
-      [GOAL]:   { fill: '#ef4444', border: '#dc2626' },
-      [OPEN]:   { fill: '#38bdf8', border: '#0284c7' },
+      [EMPTY]: { fill: '#ffffff', border: '#e5e7eb' },
+      [WALL]: { fill: '#334155', border: '#1e293b' },
+      [START]: { fill: '#22c55e', border: '#16a34a' },
+      [GOAL]: { fill: '#ef4444', border: '#dc2626' },
+      [OPEN]: { fill: '#38bdf8', border: '#0284c7' },
       [CLOSED]: { fill: '#cbd5e1', border: '#94a3b8' },
-      [PATH]:   { fill: '#fef08a', border: '#eab308' }
+      [PATH]: { fill: '#fef08a', border: '#eab308' }
     };
 
-    // Render cells
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         const state = this.grid[r][c];
@@ -657,7 +632,6 @@ class AStarVisualizer {
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 0.5, y + 0.5, cs - 1, cs - 1);
 
-        // Active node highlight
         if (this.activeNode && this.activeNode[0] === r && this.activeNode[1] === c && state !== START && state !== GOAL) {
           ctx.fillStyle = '#f97316';
           ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
@@ -666,14 +640,12 @@ class AStarVisualizer {
           ctx.strokeRect(x + 1, y + 1, cs - 2, cs - 2);
         }
 
-        // Render Numbers (f-score or all values)
         if (this.overlayType !== 'none' && state !== WALL) {
           this._renderCellOverlay(ctx, r, c, x, y, cs);
         }
       }
     }
 
-    // Render Polyline on shortest path
     if (this.finalPath.length > 1) {
       ctx.save();
       ctx.beginPath();
@@ -693,11 +665,11 @@ class AStarVisualizer {
       ctx.restore();
     }
 
-    // Render Start (S) and Goal (G) Letters
     this._renderNodeBadge(this.start[0], this.start[1], 'S', '#ffffff');
     this._renderNodeBadge(this.goal[0], this.goal[1], 'G', '#ffffff');
   }
 
+  // Draw letter badges for Start and Goal nodes
   _renderNodeBadge(r, c, letter, color) {
     const cs = this.cellSize;
     const x = c * cs + cs / 2;
@@ -713,6 +685,7 @@ class AStarVisualizer {
     ctx.restore();
   }
 
+  // Draw cost score numbers (f or f, g, h) inside cells
   _renderCellOverlay(ctx, r, c, x, y, cs) {
     const key = `${r},${c}`;
     if (!this.fScores.has(key)) return;
@@ -731,18 +704,15 @@ class AStarVisualizer {
       ctx.fillText(f, x + cs / 2, y + cs / 2);
     } else if (this.overlayType === 'all') {
       const smallFont = `500 ${Math.max(7, Math.floor(cs * 0.24))}px monospace`;
-      // f in center
       ctx.font = `bold ${Math.max(9, Math.floor(cs * 0.32))}px monospace`;
       ctx.fillStyle = '#111827';
       ctx.fillText(f, x + cs / 2, y + cs / 2 + 1);
 
-      // g in top-left
       ctx.font = smallFont;
       ctx.fillStyle = '#0369a1';
       ctx.textAlign = 'left';
       ctx.fillText(g, x + 3, y + Math.floor(cs * 0.26));
 
-      // h in top-right
       ctx.fillStyle = '#15803d';
       ctx.textAlign = 'right';
       ctx.fillText(h, x + cs - 3, y + Math.floor(cs * 0.26));
@@ -750,7 +720,7 @@ class AStarVisualizer {
     ctx.restore();
   }
 
-  // ── Sizing & Events ────────────────────────────────────────────────────────
+  // Adjust canvas dimensions and scale by devicePixelRatio for high-DPI displays
   _resizeCanvas() {
     const viewport = document.getElementById('canvas-viewport');
     const containerW = viewport && viewport.clientWidth > 0 ? viewport.clientWidth : 832;
@@ -771,6 +741,7 @@ class AStarVisualizer {
     this._render();
   }
 
+  // Convert mouse click coordinates to [row, col] grid indices
   _getCellFromEvent(e) {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -784,6 +755,7 @@ class AStarVisualizer {
     return null;
   }
 
+  // Apply currently selected tool (wall, erase, start, goal) to a cell
   _applyToolToCell(r, c) {
     if (this.activeTool === 'wall') {
       if ((r === this.start[0] && c === this.start[1]) || (r === this.goal[0] && c === this.goal[1])) return;
@@ -808,15 +780,12 @@ class AStarVisualizer {
     }
   }
 
+  // Set up user interaction listeners for toolbar, mouse drag, and keyboard shortcuts
   _setupEventListeners() {
     this.el.btnPlay.addEventListener('click', () => this.toggleRun());
     this.el.btnStep.addEventListener('click', () => this.step());
     this.el.btnResetSearch.addEventListener('click', () => this.resetSearch());
     this.el.btnClearWalls.addEventListener('click', () => this.clearWalls());
-
-    this.el.btnClearLog.addEventListener('click', () => {
-      this.el.explanationLog.innerHTML = '<div class="log-entry">Log cleared. Ready.</div>';
-    });
 
     this.el.tools.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -885,13 +854,14 @@ class AStarVisualizer {
     });
   }
 
+  // Programmatically trigger a tool button click by tool name
   _selectTool(toolName) {
     const target = Array.from(this.el.tools).find(b => b.dataset.tool === toolName);
     if (target) target.click();
   }
 }
 
-// Instantiate on load
+// Instantiate application once DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new AStarVisualizer();
 });

@@ -6,13 +6,13 @@ This project provides a clean, step-by-step demonstration of the **A\* Search Al
 
 ---
 
-## ⚡ 30-Second Elevator Pitch (For Presentations & Viva)
+## 30-Second Elevator Pitch (For Presentations & Viva)
 
 > *"This project visualizes the **A\* Search Algorithm** finding the optimal shortest path through a maze. Unlike Dijkstra's algorithm which searches blindly in all directions, A\* uses a **heuristic function (Manhattan distance)** to intelligently guide its search towards the goal. At each step, it chooses the node with the lowest total estimated cost $f(n) = g(n) + h(n)$ from a **Min-Heap Priority Queue**, guaranteeing the shortest path in the fewest expansions possible."*
 
 ---
 
-## 🚀 How to Run the Project
+## How to Run the Project
 
 The visualizer is **100% client-side** with zero external dependencies or build steps.
 
@@ -26,7 +26,7 @@ start index.html
 
 ---
 
-## 🧮 The Core Mathematics of A*
+## The Core Mathematics of A*
 
 Every candidate node $n$ is evaluated using the formula:
 
@@ -45,7 +45,7 @@ For a 4-directional grid (moving Up, Down, Left, Right), Manhattan distance is:
 
 ---
 
-## 🔍 Step-by-Step Algorithm Flow
+## Step-by-Step Algorithm Flow
 
 ```mermaid
 flowchart TD
@@ -67,7 +67,7 @@ flowchart TD
 
 ---
 
-## 📁 Code Architecture (How to Walk Through the Code)
+## Code Architecture (How to Walk Through the Code)
 
 The codebase is organized into clean, modular files designed for easy explanation:
 
@@ -88,7 +88,7 @@ A-Star-Maze/
 
 ---
 
-## 🎓 Top 5 Viva / Interview Questions & Answers
+## Top 5 Viva / Interview Questions & Answers
 
 ### 1. What is the fundamental difference between Dijkstra's algorithm and A*?
 > **Answer:** Dijkstra's algorithm only considers $g(n)$ (distance traveled so far), expanding equally in all directions like a circle. A* adds a heuristic $h(n)$ (estimated distance to goal), focusing exploration directly towards the target and visiting significantly fewer nodes.
@@ -109,21 +109,21 @@ A-Star-Maze/
 
 ---
 
-## 🎨 Grid Color Legend
+## Grid Color Legend
 
 | Color | State | Meaning |
 |---|---|---|
-| 🟢 Green | Start | Starting position (S) |
-| 🔴 Red | Goal | Target destination (G) |
-| 🧱 Slate | Wall | Impassable obstacle |
-| 🟣 Pink | Current Node | The active node currently being expanded |
-| 🔵 Blue | Open Set (Frontier) | Discovered candidate nodes waiting in the priority queue |
-| 🟦 Dark Slate | Closed Set (Visited) | Explored nodes already evaluated |
-| 🟡 Radiant Gold | Shortest Path | Optimal path reconstructed from Goal to Start |
+| Green | Start | Starting position (S) |
+| Red | Goal | Target destination (G) |
+| Slate | Wall | Impassable obstacle |
+| Pink | Current Node | The active node currently being expanded |
+| Blue | Open Set (Frontier) | Discovered candidate nodes waiting in the priority queue |
+| Dark Slate | Closed Set (Visited) | Explored nodes already evaluated |
+| Radiant Gold | Shortest Path | Optimal path reconstructed from Goal to Start |
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Keyboard Shortcuts
 
 | Shortcut | Action |
 |---|---|
