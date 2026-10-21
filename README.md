@@ -6,12 +6,6 @@ This project provides a clean, step-by-step demonstration of the **A\* Search Al
 
 ---
 
-## 30-Second Elevator Pitch (For Presentations & Viva)
-
-> *"This project visualizes the **A\* Search Algorithm** finding the optimal shortest path through a maze. Unlike Dijkstra's algorithm which searches blindly in all directions, A\* uses a **heuristic function (Manhattan distance)** to intelligently guide its search towards the goal. At each step, it chooses the node with the lowest total estimated cost $f(n) = g(n) + h(n)$ from a **Min-Heap Priority Queue**, guaranteeing the shortest path in the fewest expansions possible."*
-
----
-
 ## How to Run the Project
 
 The visualizer is **100% client-side** with zero external dependencies or build steps.
@@ -85,27 +79,6 @@ A-Star-Maze/
 3. **`manhattanDistance()`**: Computes $|r_1 - r_2| + |c_1 - c_2|$.
 4. **`*aStarGenerator()`**: An ES6 generator function running the core A* algorithm. Yielding at each step enables both automatic smooth animation and single-step manual stepping.
 5. **`_render()`**: Draws the grid, active expanding node, cell numbers ($f$-score), and the glowing golden shortest path on the HTML5 Canvas.
-
----
-
-## Top 5 Viva / Interview Questions & Answers
-
-### 1. What is the fundamental difference between Dijkstra's algorithm and A*?
-> **Answer:** Dijkstra's algorithm only considers $g(n)$ (distance traveled so far), expanding equally in all directions like a circle. A* adds a heuristic $h(n)$ (estimated distance to goal), focusing exploration directly towards the target and visiting significantly fewer nodes.
-
-### 2. What makes a heuristic "admissible" and why is it important?
-> **Answer:** A heuristic is admissible if it **never overestimates** the actual minimum cost to reach the goal ($h(n) \le h^*(n)$). If $h(n)$ is admissible, A* is mathematically guaranteed to find the optimal shortest path.
-
-### 3. What happens if $h(n) = 0$ everywhere?
-> **Answer:** If $h(n) = 0$ for all nodes, the formula becomes $f(n) = g(n) + 0 = g(n)$, which turns A* into **Dijkstra's Algorithm**.
-
-### 4. Why use a Min-Heap instead of a simple Array for the Open Set?
-> **Answer:** With a simple array, finding the minimum $f(n)$ node requires a linear scan of $O(N)$ time. A Min-Heap Priority Queue allows extracting the minimum in $O(1)$ lookup and $O(\log N)$ restructuring, making pathfinding much faster on larger grids.
-
-### 5. What are the Time and Space Complexities of A*?
-> **Answer:**
-> - **Time Complexity:** In the worst case $O(b^d)$ (where $b$ is the branching factor and $d$ is the solution depth), but with a good admissible heuristic like Manhattan distance, it is drastically smaller in practice.
-> - **Space Complexity:** $O(b^d)$ because A* must store all frontier nodes in the Open Set and visited nodes in the Closed Set.
 
 ---
 
